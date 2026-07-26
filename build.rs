@@ -12,6 +12,7 @@
 
 use std::{
     env, fs,
+    io::{self, Read},
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -133,8 +134,13 @@ fn require_payload(path: &Path) {
 /// icons/ into place, so a failed download (network error, partial stream)
 /// never leaves a half-populated `dest/data` that the next build would trust
 /// as complete.
+///
+/// Progress goes to `/dev/tty` when available so the user sees clean
+/// `downloading zukan-assets ...` lines, not cargo's `warning: <pkg>:` framing.
+/// Without a tty (CI, piped output) it falls back to `cargo:warning=`, which
+/// cargo forwards live; plain `eprintln!` would be buffered until exit.
 fn download_and_extract(dest: &Path) {
-    eprintln!("[zukan] downloading assets from {RELEASE_URL}");
+    progress_log(&format!("downloading zukan-assets from {RELEASE_URL}"));
     fs::create_dir_all(dest).unwrap_or_else(|e| panic!("failed to create {}: {e}", dest.display()));
 
     let tmp = dest.join(".download-partials");
@@ -164,7 +170,16 @@ fn download_and_extract(dest: &Path) {
             )
         });
 
-    let reader = response.into_body().into_reader();
+    // Content-Length may be absent (chunked transfer); fall back to 0 and
+    // report raw bytes instead of a percentage.
+    let total: usize = response
+        .headers()
+        .get("content-length")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0);
+
+    let reader = ProgressReader::new(response.into_body().into_reader(), total);
     let gz = flate2::read::GzDecoder::new(reader);
     let mut archive = tar::Archive::new(gz);
     archive.unpack(&tmp).unwrap_or_else(|e| {
@@ -172,6 +187,7 @@ fn download_and_extract(dest: &Path) {
         fs::remove_dir_all(&tmp).ok();
         panic!("failed to unpack assets into {}: {e}", tmp.display());
     });
+    progress_log("zukan-assets downloaded");
 
     // Move the extracted top-level dirs (data/, icons/) into `dest`.
     for sub in PAYLOAD_SUBDIRS {
@@ -187,4 +203,55 @@ fn download_and_extract(dest: &Path) {
         }
     }
     fs::remove_dir_all(&tmp).ok();
+}
+
+/// Print a progress line so the user sees it live during the download.
+/// Prefers `/dev/tty` (no cargo framing); falls back to `cargo:warning=` in
+/// non-interactive contexts (CI logs) where there is no tty.
+fn progress_log(msg: &str) {
+    use std::io::Write;
+    if let Ok(mut tty) = fs::OpenOptions::new().write(true).open("/dev/tty") {
+        let _ = writeln!(tty, "{msg}");
+        return;
+    }
+    println!("cargo:warning={msg}");
+}
+
+/// Wraps a reader and emits download progress. Reports a percentage when the
+/// total is known (Content-Length present), otherwise raw MiB. Throttled to
+/// every ~256 KiB so it doesn't spam the terminal.
+struct ProgressReader<R> {
+    inner: R,
+    read: usize,
+    total: usize,
+    last_report: usize,
+}
+
+impl<R: Read> ProgressReader<R> {
+    fn new(inner: R, total: usize) -> Self {
+        Self {
+            inner,
+            read: 0,
+            total,
+            last_report: 0,
+        }
+    }
+}
+
+impl<R: Read> Read for ProgressReader<R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let n = self.inner.read(buf)?;
+        self.read += n;
+        // Report roughly every 256 KiB.
+        if self.read >= self.last_report + 256 * 1024 || n == 0 {
+            self.last_report = self.read;
+            if self.total > 0 {
+                let pct = (self.read as u64 * 100 / self.total as u64).min(100);
+                progress_log(&format!("  {pct}% ({}/{})", self.read, self.total));
+            } else {
+                progress_log(&format!("  {} MiB", self.read / (1024 * 1024)));
+            }
+        }
+        Ok(n)
+    }
 }
