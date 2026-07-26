@@ -99,15 +99,17 @@ pub fn search<T: Searchable>(records: &[T], query: &str, limit: usize) -> Vec<us
 /// Pick a uniformly random record index, optionally filtered by `predicate`.
 /// Returns `None` if the filtered slice is empty.
 pub fn random<T>(records: &[T], predicate: impl Fn(&T) -> bool) -> Option<usize> {
-    use rand::seq::IndexedRandom;
     let candidates: Vec<usize> = records
         .iter()
         .enumerate()
         .filter(|(_, r)| predicate(r))
         .map(|(i, _)| i)
         .collect();
-    let mut rng = rand::rng();
-    candidates.choose(&mut rng).copied()
+    if candidates.is_empty() {
+        None
+    } else {
+        Some(candidates[fastrand::usize(..candidates.len())])
+    }
 }
 
 fn cap(mut v: Vec<usize>, limit: usize) -> Vec<usize> {
