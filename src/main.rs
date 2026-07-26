@@ -16,7 +16,7 @@ mod search;
 
 use std::process::ExitCode;
 
-use clap::Parser;
+use argh::FromArgs;
 
 use cli::Args;
 use config::Config;
@@ -24,13 +24,29 @@ use data::{Item, Monster};
 use database::Database;
 
 fn main() -> ExitCode {
-    let args = Args::parse();
+    let args: Args = argh::from_env();
+
+    if args.version {
+        println!("zukan {}", env!("CARGO_PKG_VERSION"));
+        return ExitCode::SUCCESS;
+    }
 
     // No-op invocation: print --help and exit 0, like git/kubectl. Done before
     // loading the DB so it's instant.
     if args.query.is_empty() && !args.random && args.list.is_none() {
-        Args::parse_from(["zukan", "--help"]);
-        // parse_from exits the process directly; this is unreachable.
+        // argh only emits help when --help is passed; synthesize it so a bare
+        // `zukan` invocation behaves like git/kubectl.
+        match Args::from_args(&["zukan"], &["--help"]) {
+            Ok(_) => {}
+            Err(early) => {
+                // status Ok = help requested (stdout), Err = parse error (stderr).
+                if early.status.is_ok() {
+                    print!("{}", early.output);
+                } else {
+                    eprint!("{}", early.output);
+                }
+            }
+        }
         return ExitCode::SUCCESS;
     }
 
@@ -324,8 +340,8 @@ fn render_monster(
     let icon_path =
         best_icon_path(m, game_override).unwrap_or_else(|| format!("icons/mhw/{}.png", m.slug));
 
-    let img = Database::asset(&icon_path).and_then(|f| {
-        image::load_from_memory(&f.data).map_err(|e| database::LoadError::Parse {
+    let img = Database::asset(&icon_path).and_then(|data| {
+        image::load_from_memory(data).map_err(|e| database::LoadError::Parse {
             file: "icon",
             error: e.to_string(),
         })
@@ -361,8 +377,8 @@ fn render_item(it: &Item, width: u32, show_card: bool, hide_name: bool, lang: i1
     let icon_path = it.icon.as_ref().map(|p| format!("icons/{p}"));
     let img = icon_path.as_ref().and_then(|p| {
         Database::asset(p)
-            .and_then(|f| {
-                image::load_from_memory(&f.data).map_err(|e| database::LoadError::Parse {
+            .and_then(|data| {
+                image::load_from_memory(data).map_err(|e| database::LoadError::Parse {
                     file: "icon",
                     error: e.to_string(),
                 })

@@ -88,13 +88,14 @@ zukan rathalos --hide-name | some-other-tool
 
 ## Configuration
 
-Optional config file at `~/.config/zukan/config.toml` (or the platform
-equivalent). Explicit CLI flags always win over config.
+Optional config file at `~/.config/zukan/config` (or the platform equivalent).
+Plain `KEY = VAL`, one per line, `#` for comments. Explicit CLI flags always
+win over config.
 
-```toml
-language = "en"              # en | ja | zh
-default_width = 0            # 0 = built-in defaults (32 monsters / 24 items); else must be 24..=48
-default_game = ""            # preferred game code for icon selection
+```sh
+language = en              # en | ja | zh
+default_width = 0          # 0 = built-in defaults (32 monsters / 24 items); else must be 24..=48
+default_game =             # preferred game code for icon selection
 show_card_by_default = false # show the info card without needing --detail
 ```
 

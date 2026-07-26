@@ -1,8 +1,9 @@
 //! Embedded assets and in-memory database.
 //!
-//! At build time rust-embed bakes `data/` + `icons/` into the binary (path set
-//! by build.rs). At runtime `Database::load()` deserializes the two JSON files
-//! once and builds slug-to-index maps for O(1) lookup.
+//! At build time build.rs walks `data/` + `icons/` and emits a static
+//! `(path, &[u8])` table to `OUT_DIR/assets_gen.rs` (included below). At
+//! runtime `Database::load()` deserializes the two JSON files once and builds
+//! slug-to-index maps
 
 // `monster_by_slug` / `item_by_slug` and the index fields form the public
 // lookup API; they're used by tests and intended for future subcommands, even
@@ -11,13 +12,9 @@
 
 use std::collections::HashMap;
 
-use rust_embed::{EmbeddedFile, RustEmbed};
-
 use crate::data::{Item, Monster};
 
-#[derive(RustEmbed)]
-#[folder = "$ASSETS_DIR/"]
-pub struct Assets;
+include!(concat!(env!("OUT_DIR"), "/assets_gen.rs"));
 
 #[derive(Debug)]
 pub struct Database {
@@ -62,19 +59,20 @@ impl Database {
         self.item_index.get(slug).map(|&i| &self.items[i])
     }
 
-    /// Fetch an embedded file by relative path, such as "icons/mhw/rathalos.png".
-    ///
-    /// `rust_embed::get` returns an owned `EmbeddedFile`; its `.data` is a
-    /// `Cow<'static, [u8]>` borrowing the binary's read-only data segment, so
-    /// callers can keep the slice for `'static`.
-    pub fn asset(path: &str) -> Result<EmbeddedFile, LoadError> {
-        Assets::get(path).ok_or_else(|| LoadError::Missing(path.to_string()))
+    /// Fetch an embedded asset by relative path, like "icons/mhw/rathalos.png".
+    /// The returned slice is `'static` (lives in the binary's read-only data).
+    pub fn asset(path: &str) -> Result<&'static [u8], LoadError> {
+        ASSETS
+            .iter()
+            .find(|(p, _)| *p == path)
+            .map(|(_, data)| *data)
+            .ok_or_else(|| LoadError::Missing(path.to_string()))
     }
 }
 
 fn parse_embedded<T: serde::de::DeserializeOwned>(path: &'static str) -> Result<T, LoadError> {
-    let file = Database::asset(path)?;
-    serde_json::from_slice(&file.data).map_err(|e| LoadError::Parse {
+    let data = Database::asset(path)?;
+    serde_json::from_slice(data).map_err(|e| LoadError::Parse {
         file: path,
         error: e.to_string(),
     })

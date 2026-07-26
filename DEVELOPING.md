@@ -78,4 +78,4 @@ roles in brief:
 - `card.rs` — neofetch-style layout (CJK-aware)
 - `color.rs` — element/ailment 256-color tables + game code↔abbr
 - `i18n.rs` + `i18n_terms.rs` — localization (hardcoded term tables)
-- `config.rs` — `~/.config/zukan/config.toml`
+- `config.rs` — `~/.config/zukan/config` (KEY=VAL parser)
