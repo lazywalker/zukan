@@ -1,9 +1,13 @@
-//! User config file at `~/.config/zukan/config.toml` (or the platform
-//! equivalent via `dirs::config_dir`).
+//! User config file at `~/.config/zukan/config` (or the platform equivalent
+//! via `dirs::config_dir`).
+//!
+//! Format is a flat KEY=VAL text file: one `key = value` per line, `#` starts
+//! a comment (line-leading only), values may be quoted or bare. Unknown keys
+//! are ignored; a field that fails to parse falls back to its default rather
+//! than failing the whole file.
 //!
 //! On first run, if the file is missing we don't write one. If present but
-//! malformed, we warn on stderr and fall back to defaults rather than failing
-//! the whole invocation.
+//! unreadable, we warn on stderr and fall back to defaults.
 //!
 //! A field applies only when the matching CLI flag was NOT passed; explicit
 //! flags always win. That resolution lives in `main.rs`; this module only
@@ -11,10 +15,7 @@
 
 use std::{fs, path::PathBuf};
 
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(default)]
+#[derive(Debug, Clone)]
 pub struct Config {
     /// Display language. Used when `--lang` is not explicitly passed.
     /// One of: en, ja, zh.
@@ -52,25 +53,43 @@ impl Config {
             return Self::default();
         };
         match fs::read_to_string(&path) {
-            Ok(text) => match toml::from_str::<Config>(&text) {
-                Ok(c) => c,
-                Err(e) => {
-                    eprintln!(
-                        "zukan: warning: failed to parse {} (using defaults): {e}",
-                        path.display()
-                    );
-                    Self::default()
-                }
-            },
+            Ok(text) => parse(&text),
             Err(_) => Self::default(),
         }
     }
 }
 
-/// Where the config file lives: `<config_dir>/zukan/config.toml`.
+/// Parse a KEY=VAL config body into a Config, starting from defaults.
+/// Lines may be `key = value` (whitespace around `=` ignored), `#` for
+/// comments, or blank. Quoted values (`"en"`) and bare (`en`) are both
+/// accepted; the surrounding quotes are stripped. A per-field parse failure
+/// leaves that field at its default (so one bad line doesn't poison the rest).
+fn parse(text: &str) -> Config {
+    let mut c = Config::default();
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let Some((key, val)) = line.split_once('=') else {
+            continue;
+        };
+        let val = val.trim().trim_matches('"');
+        match key.trim() {
+            "language" => c.language = val.to_string(),
+            "default_width" => c.default_width = val.parse().unwrap_or(0),
+            "default_game" => c.default_game = val.to_string(),
+            "show_card_by_default" => c.show_card_by_default = val == "true",
+            _ => {}
+        }
+    }
+    c
+}
+
+/// Where the config file lives: `<config_dir>/zukan/config`.
 /// Returns None only if the platform has no config dir (rare).
 pub fn config_path() -> Option<PathBuf> {
-    dirs::config_dir().map(|d| d.join("zukan").join("config.toml"))
+    dirs::config_dir().map(|d| d.join("zukan").join("config"))
 }
 
 #[cfg(test)]
@@ -89,7 +108,7 @@ mod tests {
     #[test]
     fn parse_partial_uses_defaults_for_missing() {
         // Only `language` set; rest should default.
-        let c: Config = toml::from_str("language = \"ja\"").unwrap();
+        let c = parse("language = ja");
         assert_eq!(c.language, "ja");
         assert_eq!(c.default_width, 0);
         assert!(!c.show_card_by_default);
@@ -97,13 +116,12 @@ mod tests {
 
     #[test]
     fn parse_full_config() {
-        let text = r#"
-            language = "zh"
-            default_width = 32
-            default_game = "mhwilds"
-            show_card_by_default = true
-        "#;
-        let c: Config = toml::from_str(text).unwrap();
+        let text = "\
+            language = zh\n\
+            default_width = 32\n\
+            default_game = mhwilds\n\
+            show_card_by_default = true";
+        let c = parse(text);
         assert_eq!(c.language, "zh");
         assert_eq!(c.default_width, 32);
         assert_eq!(c.default_game, "mhwilds");
@@ -113,23 +131,36 @@ mod tests {
     #[test]
     fn unknown_keys_are_ignored() {
         // Forward-compatible: extra keys don't break parsing.
-        let c: Config = toml::from_str("language = \"en\"\nfuture_key = 42").unwrap();
+        let c = parse("language = en\nfuture_key = 42");
         assert_eq!(c.language, "en");
     }
 
     #[test]
-    fn roundtrip_serialization() {
-        let c = Config {
-            language: "ja".into(),
-            default_width: 24,
-            default_game: "mhw".into(),
-            show_card_by_default: true,
-        };
-        let text = toml::to_string(&c).unwrap();
-        let back: Config = toml::from_str(&text).unwrap();
-        assert_eq!(back.language, c.language);
-        assert_eq!(back.default_width, c.default_width);
-        assert_eq!(back.default_game, c.default_game);
-        assert_eq!(back.show_card_by_default, c.show_card_by_default);
+    fn quoted_values_have_quotes_stripped() {
+        let c = parse("language = \"en\"");
+        assert_eq!(c.language, "en");
+    }
+
+    #[test]
+    fn comments_and_blank_lines_skipped() {
+        let text = "\
+            # this is a comment\n\
+            \n\
+            language = ja\n\
+            # another comment\n\
+            default_width = 24";
+        let c = parse(text);
+        assert_eq!(c.language, "ja");
+        assert_eq!(c.default_width, 24);
+    }
+
+    #[test]
+    fn bad_field_falls_back_to_default() {
+        // default_width is u32; "abc" can't parse. show_card_by_default only
+        // accepts "true"; "yes" stays false. Other fields still apply.
+        let c = parse("default_width = abc\nshow_card_by_default = yes\nlanguage = zh");
+        assert_eq!(c.default_width, 0);
+        assert!(!c.show_card_by_default);
+        assert_eq!(c.language, "zh");
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "zukan"
-version = "0.2.12"
+version = "0.2.13"
 edition = "2024"
 description = "Monster Hunter bestiary in your terminal"
 license = "MIT"
@@ -17,7 +17,6 @@ exclude = [
     "assets/**",
     "rustfmt.toml",
     "target/**",
-    "tests/**",
 ]
 
 [dependencies]
@@ -28,7 +27,6 @@ rust-embed = { version = "8", features = ["interpolate-folder-path"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 fastrand = "2"
 dirs = "6"
-toml = "0.8"
 thiserror = "2"
 
 [build-dependencies]
