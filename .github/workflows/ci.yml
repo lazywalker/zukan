@@ -1,0 +1,57 @@
+# ci.yml — code quality gate on push / PR. Runs on every push to master and on
+# every PR. Verifies fmt + clippy + tests on the three host OSes
+
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch: # manual escape hatch
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  # fmt + clippy only need to run once (they are platform-independent for a
+  # pure-Rust crate). Kept on ubuntu for speed.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Populate assets
+        run: make download
+      - name: rustfmt
+        run: cargo fmt --all -- --check
+      - name: clippy
+        run: cargo clippy --all-features --tests -- -D warnings
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        # Host-native builds only. Cross targets are exercised in release.yml.
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # Make is available on all three GH runners; the download target uses
+      # curl + tar (both preinstalled everywhere).
+      - name: Populate assets
+        run: make download
+      - name: Build
+        run: cargo build --bins --tests
+      - name: Test
+        run: cargo test --bins --tests

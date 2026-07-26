@@ -1,0 +1,6 @@
+/target
+
+# Downloaded zukan-assets payload (data/ + icons/). build.rs populates this
+# from the zukan-assets Release on first build; only the .gitkeep is tracked.
+/assets/*
+!/assets/.gitkeep
