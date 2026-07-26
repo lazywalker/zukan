@@ -16,7 +16,7 @@ mod search;
 
 use std::process::ExitCode;
 
-use clap::Parser;
+use argh::FromArgs;
 
 use cli::Args;
 use config::Config;
@@ -24,13 +24,29 @@ use data::{Item, Monster};
 use database::Database;
 
 fn main() -> ExitCode {
-    let args = Args::parse();
+    let args: Args = argh::from_env();
+
+    if args.version {
+        println!("zukan {}", env!("CARGO_PKG_VERSION"));
+        return ExitCode::SUCCESS;
+    }
 
     // No-op invocation: print --help and exit 0, like git/kubectl. Done before
     // loading the DB so it's instant.
     if args.query.is_empty() && !args.random && args.list.is_none() {
-        Args::parse_from(["zukan", "--help"]);
-        // parse_from exits the process directly; this is unreachable.
+        // argh only emits help when --help is passed; synthesize it so a bare
+        // `zukan` invocation behaves like git/kubectl.
+        match Args::from_args(&["zukan"], &["--help"]) {
+            Ok(_) => {}
+            Err(early) => {
+                // status Ok = help requested (stdout), Err = parse error (stderr).
+                if early.status.is_ok() {
+                    print!("{}", early.output);
+                } else {
+                    eprint!("{}", early.output);
+                }
+            }
+        }
         return ExitCode::SUCCESS;
     }
 
