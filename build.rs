@@ -1,15 +1,13 @@
-// build.rs: ensures the in-tree `assets/` directory holds the zukan-assets
-// payload (data/ + icons/) and tells rust-embed where to find it.
+// build.rs: make the zukan-assets payload (data/ + icons/) available to
+// rust-embed, and tell it where via the ASSETS_DIR env var.
 //
-// Resolution:
-//   - If `assets/{data,icons}` already exist, use as-is (the Makefile's
-//     `make download` / `make assets` targets populate this via curl+tar).
-//   - Otherwise download the latest zukan-assets Release tar.gz and extract it
-//     straight into `assets/`. The tar's top level is exactly `data/` +
-//     `icons/`, so `assets/` stays clean.
+// Two locations, picked in order:
+//   1. In-tree `assets/{data,icons}` — populated by `make download` / `make
+//      assets`. Preferred for dev: rust-embed reads it directly, no copy.
+//   2. `OUT_DIR/zukan-assets/` — cold-build fallback for when the source tree
+//      isn't writable or isn't pre-populated: `cargo install`, `cargo publish`
+//      verification, or a fresh clone built without `make download`.
 //
-// `assets/` is gitignored except for `.gitkeep`, so the downloaded payload is
-// never committed. rust-embed reads `assets/` directly, no staging needed.
 
 use std::{
     env, fs,
@@ -31,12 +29,21 @@ const PAYLOAD_SUBDIRS: &[&str] = &["data", "icons"];
 fn main() {
     let manifest_dir =
         PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set by cargo"));
-    let assets_dir = manifest_dir.join("assets");
+    let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR is set by cargo"));
+    let in_tree = manifest_dir.join("assets");
 
-    if !has_payload(&assets_dir) {
-        download_and_extract(&assets_dir);
-        require_payload(&assets_dir);
-    }
+    // Prefer the in-tree payload (dev). Fall back to OUT_DIR for cold builds
+    // where the source tree isn't writable (cargo install / publish verify).
+    let assets_dir = if has_payload(&in_tree) {
+        in_tree
+    } else {
+        let staged = out_dir.join("zukan-assets");
+        if !has_payload(&staged) {
+            download_and_extract(&staged);
+            require_payload(&staged);
+        }
+        staged
+    };
 
     // Watch the payload so a manual re-download (rm + rebuild, or
     // `git clean -Xdf assets/`) triggers rust-embed to re-read.
@@ -64,9 +71,10 @@ fn require_payload(path: &Path) {
 
 /// Download the Release tar.gz and extract it into `dest` in-process.
 ///
-/// Extracts into a temp sibling first, then renames into place, so a failed
-/// download (network error, partial stream) never leaves a half-populated
-/// `assets/data` that the next build would trust as complete.
+/// Extracts into a `.download-partials` subdir first, then moves data/ and
+/// icons/ into place, so a failed download (network error, partial stream)
+/// never leaves a half-populated `dest/data` that the next build would trust
+/// as complete.
 fn download_and_extract(dest: &Path) {
     eprintln!("[zukan] downloading assets from {RELEASE_URL}");
     fs::create_dir_all(dest).unwrap_or_else(|e| panic!("failed to create {}: {e}", dest.display()));
