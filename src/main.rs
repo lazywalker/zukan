@@ -338,8 +338,7 @@ fn render_monster(
             println!("{}", card::render_monster(&img, m, w, lang));
         }
         (Ok(img), false) => {
-            // Native width (48px) keeps pixel art crisp unless the user overrides.
-            println!("{}", render::render_halfblock(&img, width, true));
+            println!("{}", render::render_halfblock(&img, w, true));
         }
         (Err(e), _) => {
             eprintln!("zukan: could not load icon {icon_path}: {e}");
@@ -378,7 +377,6 @@ fn render_item(it: &Item, width: u32, show_card: bool, hide_name: bool, lang: i1
             println!("{}", card::render_item(Some(img), it, w, lang));
         }
         (Some(img), false) => {
-            let w = if width != 0 { width } else { 24 };
             println!("{}", render::render_halfblock(img, w, true));
         }
         (None, true) => {

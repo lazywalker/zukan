@@ -40,15 +40,16 @@ pub fn render_monster(img: &DynamicImage, m: &Monster, width: u32, lang: Lang) -
     card.push_plain(format!("{DIM}{rule}{RESET}"));
 
     // Type
-    card.add_kv(label("Type", lang), term(&m.kind, lang));
+    card.add_kv(label("Type", lang), term(&m.kind, lang), value_w);
     if let Some(species) = &m.species
         && !species.is_empty()
     {
-        card.add_kv(label("Species", lang), term(species, lang));
+        card.add_kv(label("Species", lang), term(species, lang), value_w);
     }
     card.add_kv(
         label("Size", lang),
         term(if m.is_large { "Large" } else { "Small" }, lang),
+        value_w,
     );
 
     if !m.elements.is_empty() {
@@ -89,7 +90,7 @@ pub fn render_monster(img: &DynamicImage, m: &Monster, width: u32, lang: Lang) -
         .unwrap_or(&[]);
     if !locations.is_empty() {
         let locs: Vec<String> = locations.iter().map(|l| term(&l.name, lang)).collect();
-        card.add_kv(label("Location", lang), locs.join(", "));
+        card.add_kv(label("Location", lang), locs.join(", "), value_w);
     }
 
     // Star-rated weaknesses (mhw only; wilds uses level, not stars).
@@ -117,7 +118,7 @@ pub fn render_monster(img: &DynamicImage, m: &Monster, width: u32, lang: Lang) -
     // Sub-species: stored as English display names; localize if possible.
     if !m.sub_species.is_empty() {
         let names: Vec<String> = m.sub_species.iter().map(|s| term(s, lang)).collect();
-        card.add_kv(label("Sub-species", lang), names.join(", "));
+        card.add_kv(label("Sub-species", lang), names.join(", "), value_w);
     }
 
     // Games: dedup by full title, abbreviate.
@@ -139,7 +140,7 @@ pub fn render_monster(img: &DynamicImage, m: &Monster, width: u32, lang: Lang) -
                 }
             })
             .collect();
-        card.add_kv(label("Games", lang), abbrs.join(", "));
+        card.add_kv(label("Games", lang), abbrs.join(", "), value_w);
     }
 
     // Description: prefer localized, fall back to numeric desc or game info.
@@ -178,13 +179,14 @@ pub fn render_item(img: Option<&DynamicImage>, it: &Item, width: u32, lang: Lang
         card.add_kv(
             label("Rarity", lang),
             format!("{YELLOW}{s}{RESET} ({r}/10)"),
+            value_w,
         );
     }
     if let Some(v) = it.value {
-        card.add_kv(label("Value", lang), format!("{v}z"));
+        card.add_kv(label("Value", lang), format!("{v}z"), value_w);
     }
     if let Some(c) = it.carry_limit {
-        card.add_kv(label("Carry", lang), format!("{c}"));
+        card.add_kv(label("Carry", lang), format!("{c}"), value_w);
     }
     if !it.sources.is_empty() {
         // Item sources use API game codes (mhw, wilds); normalize to display
@@ -196,11 +198,11 @@ pub fn render_item(img: Option<&DynamicImage>, it: &Item, width: u32, lang: Lang
             .collect();
         games.sort();
         games.dedup();
-        card.add_kv(label("Games", lang), games.join(", "));
+        card.add_kv(label("Games", lang), games.join(", "), value_w);
     }
     if let Some(is) = &it.icon_source {
         let cleaned = is.strip_prefix("item-type:").unwrap_or(is);
-        card.add_kv(label("Icon type", lang), cleaned.to_string());
+        card.add_kv(label("Icon type", lang), cleaned.to_string(), value_w);
     }
 
     let desc = loc_desc.or_else(|| it.description.clone());
@@ -260,10 +262,8 @@ impl CardLines {
         self.lines.push(s);
     }
 
-    /// Add a key: value row, wrapping the value to the standard `value_w`.
-    fn add_kv(&mut self, key: impl AsRef<str>, value: String) {
-        // value_w matches the default layout (icon width 32).
-        let value_w = TOTAL_COLS.saturating_sub(32 + PAD + KEY_W);
+    /// Add a key: value row, wrapping the value to `value_w` visible columns.
+    fn add_kv(&mut self, key: impl AsRef<str>, value: String, value_w: usize) {
         let key = key.as_ref();
         let wrapped = wrap_cjk(&value, value_w);
         for (i, chunk) in wrapped.iter().enumerate() {

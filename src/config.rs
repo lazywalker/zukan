@@ -21,7 +21,7 @@ pub struct Config {
     pub language: String,
 
     /// Default icon width in terminal columns. 0 = built-in defaults
-    /// (40 for monsters, 24 for items).
+    /// (32 for monsters, 24 for items).
     pub default_width: u32,
 
     /// Default game code for icon selection (such as "mhwilds"). When set, a

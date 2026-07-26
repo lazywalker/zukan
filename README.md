@@ -58,7 +58,7 @@ zukan rathalos --detail --lang ja
 | `--item` | Query the item database instead of monsters |
 | `--detail` | Show the info card next to the icon |
 | `--no-card` | Icon only (overrides `--detail` and config) |
-| `--width N` | Icon width in terminal columns (default 32 monsters / 24 items) |
+| `--width N` | Icon width in terminal columns (0 = default 32 monsters / 24 items; else 24..=48) |
 | `--lang en\|ja\|zh` | Display language (`auto` = use config) |
 | `--random` | Pick a random monster/item |
 | `--game CODE` | Filter `--random` to a game (e.g. `mhw`, `MHW`, `mhwilds`) |
@@ -82,7 +82,7 @@ equivalent). Explicit CLI flags always win over config.
 
 ```toml
 language = "en"              # en | ja | zh
-default_width = 0            # 0 = built-in defaults (32 monsters / 24 items)
+default_width = 0            # 0 = built-in defaults (32 monsters / 24 items); else must be 24..=48
 default_game = ""            # preferred game code for icon selection
 show_card_by_default = false # show the info card without needing --detail
 ```
