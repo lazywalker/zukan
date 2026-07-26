@@ -324,8 +324,8 @@ fn render_monster(
     let icon_path =
         best_icon_path(m, game_override).unwrap_or_else(|| format!("icons/mhw/{}.png", m.slug));
 
-    let img = Database::asset(&icon_path).and_then(|f| {
-        image::load_from_memory(&f.data).map_err(|e| database::LoadError::Parse {
+    let img = Database::asset(&icon_path).and_then(|data| {
+        image::load_from_memory(data).map_err(|e| database::LoadError::Parse {
             file: "icon",
             error: e.to_string(),
         })
@@ -361,8 +361,8 @@ fn render_item(it: &Item, width: u32, show_card: bool, hide_name: bool, lang: i1
     let icon_path = it.icon.as_ref().map(|p| format!("icons/{p}"));
     let img = icon_path.as_ref().and_then(|p| {
         Database::asset(p)
-            .and_then(|f| {
-                image::load_from_memory(&f.data).map_err(|e| database::LoadError::Parse {
+            .and_then(|data| {
+                image::load_from_memory(data).map_err(|e| database::LoadError::Parse {
                     file: "icon",
                     error: e.to_string(),
                 })
