@@ -4,8 +4,21 @@ version = "0.2.11"
 edition = "2024"
 description = "Monster Hunter bestiary in your terminal"
 license = "MIT"
+repository = "https://github.com/lazywalker/zukan"
+homepage = "https://github.com/lazywalker/zukan"
+readme = "README.md"
 keywords = ["monster-hunter", "cli", "terminal", "sprites"]
 categories = ["command-line-utilities"]
+exclude = [
+    ".github/**",
+    "Makefile",
+    "DEVELOPING.md",
+    "docs/**",
+    "assets/**",
+    "rustfmt.toml",
+    "target/**",
+    "tests/**",
+]
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
@@ -35,9 +48,6 @@ opt-level = "z"
 # codegen-units = 1
 # strip = true
 
-# Metadata for cargo-deb (produces the .deb on `cargo deb`). The binary is
-# auto-installed at /usr/bin/zukan; this section additionally ships the
-# license + manpage-less README and classifies the package.
 [package.metadata.deb]
 maintainer = "lazywalker <lazywalker@example.com>"
 section = "utils"

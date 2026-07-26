@@ -1,5 +1,16 @@
 # ZUKAN
 
+<!-- Repository badges -->
+
+[![Rust](https://img.shields.io/badge/rust-2024--edition-orange)](https://www.rust-lang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/lazywalker/zukan/actions/workflows/ci.yml/badge.svg)](https://github.com/lazywalker/zukan/actions)
+[![crates.io](https://img.shields.io/crates/v/zukan.svg)](https://crates.io/crates/zukan)
+[![docs.rs](https://docs.rs/zukan/badge.svg)](https://docs.rs/zukan)
+[![codecov](https://codecov.io/gh/lazywalker/zukan/branch/master/graph/badge.svg)](https://codecov.io/gh/lazywalker/zukan)
+[![Dependabot](https://img.shields.io/badge/Dependabot-enabled-brightgreen.svg)](https://github.com/lazywalker/zukan/network/updates)
+[![Maintenance](https://img.shields.io/maintenance/yes/2026)](https://github.com/lazywalker/zukan)
+
 zukan(図鑑) is a Monster Hunter bestiary in your terminal. 
 Renders creature and item icons as half-block ANSI art, 
 with an optional info card. All assets are

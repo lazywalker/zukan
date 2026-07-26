@@ -1,13 +1,32 @@
 # ci.yml — code quality gate on push / PR. Runs on every push to master and on
-# every PR. Verifies fmt + clippy + tests on the three host OSes
+# every PR. Verifies fmt + clippy + tests on the three host OSes, plus a
+# coverage job that uploads to Codecov.
 
 name: ci
 
 on:
+  workflow_dispatch: # manual escape hatch — always runs, ignores paths
   push:
     branches: [master]
+    paths:
+      - "*.rs"
+      - "**/*.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build.rs"
+      - "tests/**"
+      - "rustfmt.toml"
+      - ".github/workflows/ci.yml"
   pull_request:
-  workflow_dispatch: # manual escape hatch
+    paths:
+      - "*.rs"
+      - "**/*.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build.rs"
+      - "tests/**"
+      - "rustfmt.toml"
+      - ".github/workflows/ci.yml"
 
 # Cancel superseded runs on the same ref to save CI minutes.
 concurrency:
@@ -16,6 +35,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
   RUSTFLAGS: "-D warnings"
 
 jobs:
@@ -24,11 +44,11 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@v2.9.1
       - name: Populate assets
         run: make download
       - name: rustfmt
@@ -44,9 +64,9 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@v2.9.1
       # Make is available on all three GH runners; the download target uses
       # curl + tar (both preinstalled everywhere).
       - name: Populate assets
@@ -55,3 +75,32 @@ jobs:
         run: cargo build --bins --tests
       - name: Test
         run: cargo test --bins --tests
+
+  coverage:
+    name: coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2.9.1
+      - name: Populate assets
+        run: make download
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov
+      - name: Generate coverage report
+        # --codecov: emit Codecov JSON format. --output-path: write to a file
+        # the upload step can find. zukan is a single binary crate (no
+        # --workspace needed).
+        run: cargo llvm-cov --all-features --codecov --output-path codecov.json
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          # Requires CODECOV_TOKEN repo secret for private repos; public repos
+          # work without a token but setting one is recommended. fail_ci_if_error
+          # is false so a missing token / upload hiccup doesn't break CI.
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: codecov.json
+          fail_ci_if_error: false
+          verbose: true
