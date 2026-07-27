@@ -60,14 +60,13 @@ impl Config {
 }
 
 /// Parse a KEY=VAL config body into a Config, starting from defaults.
-/// Lines may be `key = value` (whitespace around `=` ignored), `#` for
-/// comments, or blank. Quoted values (`"en"`) and bare (`en`) are both
-/// accepted; the surrounding quotes are stripped. A per-field parse failure
-/// leaves that field at its default (so one bad line doesn't poison the rest).
 fn parse(text: &str) -> Config {
     let mut c = Config::default();
     for line in text.lines() {
-        let line = line.trim();
+        // Strip inline comments: ` #` (space + hash) starts a comment, like
+        // shell/dotenv. A hash inside a quoted value ("a#b") has no preceding
+        // space so it survives.
+        let line = strip_inline_comment(line).trim();
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
@@ -79,7 +78,7 @@ fn parse(text: &str) -> Config {
             "language" => c.language = val.to_string(),
             "default_width" => c.default_width = val.parse().unwrap_or(0),
             "default_game" => c.default_game = val.to_string(),
-            "show_card_by_default" => c.show_card_by_default = val == "true",
+            "show_card_by_default" => c.show_card_by_default = parse_bool(val),
             _ => {}
         }
     }
@@ -90,6 +89,38 @@ fn parse(text: &str) -> Config {
 /// Returns None only if the platform has no config dir (rare).
 pub fn config_path() -> Option<PathBuf> {
     dirs::config_dir().map(|d| d.join("zukan").join("config"))
+}
+
+/// Drop an inline ` #...` comment from a line, respecting quotes. A `#` only
+/// starts a comment when preceded by whitespace and outside a quoted region.
+/// Bare leading `#` lines are handled by the caller.
+fn strip_inline_comment(line: &str) -> &str {
+    let mut in_quotes = false;
+    let bytes = line.as_bytes();
+    let mut cut = line.len();
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'"' => in_quotes = !in_quotes,
+            b'#' if !in_quotes && i > 0 && bytes[i - 1].is_ascii_whitespace() => {
+                cut = i;
+                break;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    &line[..cut]
+}
+
+/// Accept the common truthy spellings (true/yes/on/1) case-insensitively;
+/// everything else is false. Matches dotenv/shell conventions so users aren't
+/// silently dropped to the default for writing `yes` instead of `true`.
+fn parse_bool(val: &str) -> bool {
+    matches!(
+        val.trim().to_ascii_lowercase().as_str(),
+        "true" | "yes" | "on" | "1"
+    )
 }
 
 #[cfg(test)]
@@ -156,11 +187,41 @@ mod tests {
 
     #[test]
     fn bad_field_falls_back_to_default() {
-        // default_width is u32; "abc" can't parse. show_card_by_default only
-        // accepts "true"; "yes" stays false. Other fields still apply.
-        let c = parse("default_width = abc\nshow_card_by_default = yes\nlanguage = zh");
+        let c = parse("default_width = abc\nshow_card_by_default = maybe\nlanguage = zh");
         assert_eq!(c.default_width, 0);
         assert!(!c.show_card_by_default);
         assert_eq!(c.language, "zh");
+    }
+
+    #[test]
+    fn inline_comments_are_stripped() {
+        let text = "\
+            language = zh              # en | ja | zh\n\
+            default_width = 0          # built-in defaults\n\
+            show_card_by_default = yes # show the info card";
+        let c = parse(text);
+        assert_eq!(c.language, "zh");
+        assert_eq!(c.default_width, 0);
+        assert!(c.show_card_by_default);
+    }
+
+    #[test]
+    fn hash_inside_value_is_not_a_comment() {
+        // A `#` with no preceding space stays part of the value.
+        let c = parse(r#"default_game = "foo#bar""#);
+        assert_eq!(c.default_game, "foo#bar");
+    }
+
+    #[test]
+    fn bool_accepts_common_spellings() {
+        assert!(parse("show_card_by_default = true").show_card_by_default);
+        assert!(parse("show_card_by_default = yes").show_card_by_default);
+        assert!(parse("show_card_by_default = on").show_card_by_default);
+        assert!(parse("show_card_by_default = 1").show_card_by_default);
+        assert!(parse("show_card_by_default = TRUE").show_card_by_default);
+        assert!(!parse("show_card_by_default = false").show_card_by_default);
+        assert!(!parse("show_card_by_default = no").show_card_by_default);
+        assert!(!parse("show_card_by_default = 0").show_card_by_default);
+        assert!(!parse("show_card_by_default = maybe").show_card_by_default);
     }
 }

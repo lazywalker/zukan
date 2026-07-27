@@ -1,6 +1,6 @@
 [package]
 name = "zukan"
-version = "0.2.13"
+version = "0.2.23"
 edition = "2024"
 description = "Monster Hunter bestiary in your terminal"
 license = "MIT"
