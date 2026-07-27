@@ -271,11 +271,11 @@ jobs:
         run: make download
 
       - name: cargo publish
-        # --token: auth via CARGO_REGISTRY_TOKEN repo secret. Verification is
-        # left ON (don't add --no-verify) — if the build fails on crates.io's
-        # servers (e.g. ureq can't reach GitHub), we want to know, not ship a
-        # broken crate.
+        # Auth via CARGO_REGISTRY_TOKEN env var (the modern path; --token flag
+        # is deprecated). Verification is left ON (don't add --no-verify) -- if
+        # the build fails on crates.io's servers (ureq can't reach GitHub), we
+        # want to know, not ship a broken crate.
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: cargo publish --token "$CARGO_REGISTRY_TOKEN"
+        run: cargo publish
 
