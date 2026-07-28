@@ -90,22 +90,35 @@ pub fn stars(n: u32) -> String {
     format!("{filled}{empty}")
 }
 
+// Single source of game metadata: each row is
+//   (code, abbreviation, full_title, base_game_code)
+// base_game_code is what an expansion folds into for display (Iceborne folds
+// to MHW, Sunbreak to MHRise); for non-expansions it equals code.
+const GAMES: &[(&str, &str, &str, &str)] = &[
+    ("mhfu", "MHFU", "Monster Hunter Freedom Unite", "mhfu"),
+    ("mh3u", "MH3U", "Monster Hunter 3 Ultimate", "mh3u"),
+    ("mh4u", "MH4U", "Monster Hunter 4 Ultimate", "mh4u"),
+    (
+        "mhgu",
+        "MHGU",
+        "Monster Hunter Generations Ultimate",
+        "mhgu",
+    ),
+    ("mhw", "MHW", "Monster Hunter World", "mhw"),
+    ("mhwi", "MHWI", "Monster Hunter World", "mhw"),
+    ("mhrise", "MHRise", "Monster Hunter Rise", "mhrise"),
+    ("mhrs", "MHRS", "Monster Hunter Rise", "mhrise"),
+    ("mhwilds", "MHWilds", "Monster Hunter Wilds", "mhwilds"),
+    ("mhst", "MHST", "Monster Hunter Stories", "mhst"),
+    ("mhst2", "MHST2", "Monster Hunter Stories 2", "mhst2"),
+];
+
 /// Full game title to short display code: "Monster Hunter World" -> "MHW".
 pub fn game_abbr(full: &str) -> &'static str {
-    let map: &[(&str, &str)] = &[
-        ("Monster Hunter Freedom Unite", "MHFU"),
-        ("Monster Hunter 3 Ultimate", "MH3U"),
-        ("Monster Hunter 4 Ultimate", "MH4U"),
-        ("Monster Hunter Generations Ultimate", "MHGU"),
-        ("Monster Hunter World", "MHW"),
-        ("Monster Hunter Rise", "MHRise"),
-        ("Monster Hunter Wilds", "MHWilds"),
-        ("Monster Hunter Stories", "MHST"),
-        ("Monster Hunter Stories 2", "MHST2"),
-    ];
-    map.iter()
-        .find(|(k, _)| *k == full)
-        .map(|(_, v)| *v)
+    GAMES
+        .iter()
+        .find(|(_, _, t, _)| *t == full)
+        .map(|(_, a, _, _)| *a)
         .unwrap_or("")
 }
 
@@ -116,23 +129,37 @@ pub fn game_abbr(full: &str) -> &'static str {
 /// canonical abbreviation, falling back to uppercasing the input.
 pub fn game_code_abbr(code: &str) -> String {
     let canonical = normalize_game(code).unwrap_or(code);
-    let map: &[(&str, &str)] = &[
-        ("mhfu", "MHFU"),
-        ("mh3u", "MH3U"),
-        ("mh4u", "MH4U"),
-        ("mhgu", "MHGU"),
-        ("mhw", "MHW"),
-        ("mhwi", "MHWI"),
-        ("mhrise", "MHRise"),
-        ("mhrs", "MHRS"),
-        ("mhwilds", "MHWilds"),
-        ("mhst", "MHST"),
-        ("mhst2", "MHST2"),
-    ];
-    map.iter()
-        .find(|(k, _)| *k == canonical)
-        .map(|(_, v)| (*v).to_string())
+    GAMES
+        .iter()
+        .find(|(c, _, _, _)| *c == canonical)
+        .map(|(_, a, _, _)| (*a).to_string())
         .unwrap_or_else(|| code.to_uppercase())
+}
+
+/// Game code to its full title for display ("mhw" -> "Monster Hunter World").
+///
+/// Expansions resolve to their base title (mhwi -> "Monster Hunter World"),
+/// matching how their `games[]` rows used to carry the base game_full. Returns
+/// "" for unknown codes so callers can fall back to the raw code.
+pub fn game_full_title(code: &str) -> &'static str {
+    GAMES
+        .iter()
+        .find(|(c, _, _, _)| *c == code)
+        .map(|(_, _, t, _)| *t)
+        .unwrap_or("")
+}
+
+/// Game code to its base-game code ("mhwi" -> "mhw", "mhrs" -> "mhrise").
+///
+/// Used to fold expansions into their base game for the card's Games line:
+/// dedup on the base code so a monster in both mhw and mhwi lists as one
+/// "MHW". Unknown codes map to themselves.
+pub fn base_game_code(code: &str) -> String {
+    GAMES
+        .iter()
+        .find(|(c, _, _, _)| *c == code)
+        .map(|(_, _, _, b)| (*b).to_string())
+        .unwrap_or_else(|| code.to_string())
 }
 
 /// Normalize a user-facing game token (`mhw`, `MHW`, `Monster Hunter World`)
@@ -282,5 +309,25 @@ mod tests {
         assert_eq!(game_code_abbr("mhwilds"), "MHWilds");
         // Unknown codes fall back to uppercasing.
         assert_eq!(game_code_abbr("future"), "FUTURE");
+    }
+
+    #[test]
+    fn base_game_code_folds_expansions() {
+        assert_eq!(base_game_code("mhwi"), "mhw");
+        assert_eq!(base_game_code("mhrs"), "mhrise");
+        // Non-expansions map to themselves.
+        assert_eq!(base_game_code("mhw"), "mhw");
+        assert_eq!(base_game_code("mhwilds"), "mhwilds");
+        // Unknown codes pass through.
+        assert_eq!(base_game_code("future"), "future");
+    }
+
+    #[test]
+    fn game_full_title_folds_expansions() {
+        assert_eq!(game_full_title("mhwilds"), "Monster Hunter Wilds");
+        // Iceborne/Sunbreak resolve to their base title.
+        assert_eq!(game_full_title("mhwi"), "Monster Hunter World");
+        assert_eq!(game_full_title("mhrs"), "Monster Hunter Rise");
+        assert_eq!(game_full_title("future"), "");
     }
 }

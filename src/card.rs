@@ -13,7 +13,8 @@
 use image::DynamicImage;
 
 use crate::color::{
-    BOLD, CYAN, DIM, RESET, YELLOW, ailment_color, element_color, game_abbr, stars,
+    BOLD, CYAN, DIM, RESET, YELLOW, ailment_color, base_game_code, element_color, game_code_abbr,
+    stars,
 };
 use crate::data::{Item, Monster};
 use crate::i18n::{
@@ -121,25 +122,16 @@ pub fn render_monster(img: &DynamicImage, m: &Monster, width: u32, lang: Lang) -
         card.add_kv(label("Sub-species", lang), names.join(", "), value_w);
     }
 
-    // Games: dedup by full title, abbreviate.
+    // Games: dedup by base-game code so expansions (mhwi/mhrs) fold into
+    // their base (mhw/mhrise), then abbreviate.
     if !m.games.is_empty() {
-        let mut seen: Vec<&str> = Vec::new();
-        for g in &m.games {
-            if !seen.contains(&g.game_full.as_str()) {
-                seen.push(g.game_full.as_str());
-            }
-        }
-        let abbrs: Vec<String> = seen
+        let mut abbrs: Vec<String> = m
+            .games
             .iter()
-            .map(|t| {
-                let a = game_abbr(t);
-                if a.is_empty() {
-                    (*t).to_string()
-                } else {
-                    a.to_string()
-                }
-            })
+            .map(|g| game_code_abbr(&base_game_code(&g.game)))
             .collect();
+        abbrs.sort();
+        abbrs.dedup();
         card.add_kv(label("Games", lang), abbrs.join(", "), value_w);
     }
 
@@ -375,7 +367,6 @@ mod tests {
             games: vec![
                 GameEntry {
                     game: "mhw".into(),
-                    game_full: "Monster Hunter World".into(),
                     info: Some("King of the Skies.".into()),
                     danger: None,
                     icon: Some("mhw/rathalos.png".into()),
@@ -383,7 +374,6 @@ mod tests {
                 },
                 GameEntry {
                     game: "mhwilds".into(),
-                    game_full: "Monster Hunter Wilds".into(),
                     info: None,
                     danger: None,
                     icon: Some("mhwilds/rathalos.png".into()),

@@ -54,8 +54,6 @@ pub struct GameEntry {
     #[serde(default)]
     pub game: String,
     #[serde(default)]
-    pub game_full: String,
-    #[serde(default)]
     pub info: Option<String>,
     #[serde(default)]
     pub danger: Option<String>,

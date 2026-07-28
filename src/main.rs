@@ -240,11 +240,12 @@ fn list_game(db: &Database, token: &str, lang: i18n::Lang) -> Result<(), RunErro
     // Sort by slug for stable output.
     entries.sort_by(|a, b| a.slug.cmp(&b.slug));
 
-    let full_title = entries
-        .first()
-        .and_then(|m| m.games.iter().find(|e| e.game == game))
-        .map(|e| e.game_full.as_str())
-        .unwrap_or(game);
+    let full_title = crate::color::game_full_title(game);
+    let full_title: &str = if full_title.is_empty() {
+        game
+    } else {
+        full_title
+    };
     println!("{full_title}  ({} monsters)", entries.len());
     for m in entries {
         let (loc_name, _) = i18n::monster_localized(m, lang);
@@ -460,7 +461,6 @@ mod tests {
             games: vec![
                 data::GameEntry {
                     game: "mhw".into(),
-                    game_full: "World".into(),
                     info: None,
                     danger: None,
                     icon: Some("mhw/test.png".into()),
@@ -468,7 +468,6 @@ mod tests {
                 },
                 data::GameEntry {
                     game: "mhst2".into(),
-                    game_full: "Stories 2".into(),
                     info: None,
                     danger: None,
                     icon: Some("mhst2/test.png".into()),
@@ -501,7 +500,6 @@ mod tests {
             games: vec![
                 data::GameEntry {
                     game: "mhst2".into(),
-                    game_full: "Stories 2".into(),
                     info: None,
                     danger: None,
                     icon: None,
@@ -509,7 +507,6 @@ mod tests {
                 },
                 data::GameEntry {
                     game: "mhfu".into(),
-                    game_full: "Freedom Unite".into(),
                     info: None,
                     danger: None,
                     icon: Some("mhfu/test.png".into()),
@@ -542,7 +539,6 @@ mod tests {
             games: vec![
                 data::GameEntry {
                     game: "mhw".into(),
-                    game_full: "World".into(),
                     info: None,
                     danger: None,
                     icon: Some("mhw/test.png".into()),
@@ -550,7 +546,6 @@ mod tests {
                 },
                 data::GameEntry {
                     game: "mhst2".into(),
-                    game_full: "Stories 2".into(),
                     info: None,
                     danger: None,
                     icon: Some("mhst2/test.png".into()),
@@ -582,7 +577,6 @@ mod tests {
             weakness: Vec::new(),
             games: vec![data::GameEntry {
                 game: "mhst2".into(),
-                game_full: "Stories 2".into(),
                 info: None,
                 danger: None,
                 icon: Some("mhst2/test.png".into()),
@@ -614,7 +608,6 @@ mod tests {
             games: vec![
                 data::GameEntry {
                     game: "mhw".into(),
-                    game_full: "World".into(),
                     info: None,
                     danger: None,
                     icon: None,
@@ -622,7 +615,6 @@ mod tests {
                 },
                 data::GameEntry {
                     game: "mhst2".into(),
-                    game_full: "Stories 2".into(),
                     info: None,
                     danger: None,
                     icon: Some("mhst2/test.png".into()),
