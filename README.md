@@ -6,7 +6,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/lazywalker/zukan/actions/workflows/ci.yml/badge.svg)](https://github.com/lazywalker/zukan/actions)
 [![crates.io](https://img.shields.io/crates/v/zukan.svg)](https://crates.io/crates/zukan)
-[![docs.rs](https://docs.rs/zukan/badge.svg)](https://docs.rs/zukan)
 [![codecov](https://codecov.io/gh/lazywalker/zukan/branch/master/graph/badge.svg)](https://codecov.io/gh/lazywalker/zukan)
 [![Dependabot](https://img.shields.io/badge/Dependabot-enabled-brightgreen.svg)](https://github.com/lazywalker/zukan/network/updates)
 [![Maintenance](https://img.shields.io/maintenance/yes/2026)](https://github.com/lazywalker/zukan)
@@ -20,17 +19,20 @@ Asset data comes from the companion repo [zukan-assets](https://github.com/lazyw
 
 ## Install
 
-Prebuilt binaries will land on the Releases page once CI is wired. For now,
-build from source:
+**Prebuilt binary** — download from the
+[Releases page](https://github.com/lazywalker/zukan/releases/latest):
 
 ```bash
-git clone https://github.com/lazywalker/zukan
-cd zukan
-make release        # optimized build, ~9 MB binary at target/release/zukan
+# Linux/macOS (pick the asset matching your platform)
+tar xzf zukan-<version>-x86_64-linux.tar.gz
+sudo install -m 755 zukan /usr/local/bin/
 ```
 
-The first build downloads the latest `zukan-assets` Release (~6 MB of icon +
-data) into the in-tree `assets/` directory and embeds it.
+**cargo install** — builds from source on crates.io:
+
+```bash
+cargo install zukan
+```
 
 For asset refresh, local-checkout overrides, make targets, developing notes, see [DEVELOPING.md](DEVELOPING.md).
 

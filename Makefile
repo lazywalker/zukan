@@ -1,4 +1,4 @@
-# Makefile for zukan — convenience wrappers around cargo + asset management.
+# Makefile for zukan: convenience wrappers around cargo + asset management.
 #
 # Asset lifecycle:
 #   make download   fetch the latest zukan-assets Release into assets/{data,icons}

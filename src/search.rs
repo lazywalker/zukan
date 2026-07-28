@@ -126,10 +126,10 @@ mod tests {
 
     fn monster(slug: &str, name: &str) -> Monster {
         Monster {
-            id: String::new(),
+            id: None,
             name: name.to_string(),
             slug: slug.to_string(),
-            kind: "Test".to_string(),
+            kind: Some("Test".to_string()),
             species: None,
             is_large: true,
             sub_species: Vec::new(),
