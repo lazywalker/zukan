@@ -24,11 +24,12 @@ use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Monster {
-    pub id: String,
+    #[serde(default)]
+    pub id: Option<String>,
     pub name: String,
     pub slug: String,
-    #[serde(rename = "type")]
-    pub kind: String,
+    #[serde(rename = "type", default)]
+    pub kind: Option<String>,
     #[serde(default)]
     pub species: Option<String>,
     #[serde(default)]

@@ -113,15 +113,6 @@ const GAMES: &[(&str, &str, &str, &str)] = &[
     ("mhst2", "MHST2", "Monster Hunter Stories 2", "mhst2"),
 ];
 
-/// Full game title to short display code: "Monster Hunter World" -> "MHW".
-pub fn game_abbr(full: &str) -> &'static str {
-    GAMES
-        .iter()
-        .find(|(_, _, t, _)| *t == full)
-        .map(|(_, a, _, _)| *a)
-        .unwrap_or("")
-}
-
 /// Game code (`mhw`, `wilds`) to short display code (`MHW`, `MHWilds`).
 ///
 /// Item `sources[].game` uses API vocabulary (`wilds`, not `mhwilds`),
@@ -281,13 +272,6 @@ mod tests {
         assert_eq!(stars(2), "★★☆");
         assert_eq!(stars(3), "★★★");
         assert_eq!(stars(4), "");
-    }
-
-    #[test]
-    fn game_abbr_known() {
-        assert_eq!(game_abbr("Monster Hunter World"), "MHW");
-        assert_eq!(game_abbr("Monster Hunter Wilds"), "MHWilds");
-        assert_eq!(game_abbr("Unknown Title"), "");
     }
 
     #[test]

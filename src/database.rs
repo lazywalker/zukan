@@ -136,12 +136,14 @@ mod tests {
     }
 
     #[test]
-    fn every_monster_has_ja_and_zh() {
+    fn mhdb_monsters_have_ja_and_zh() {
         let db = Database::load().expect("parse");
+        // Supplement monsters (MHO/MH4U exclusives) have no i18n source; skip
+        // them by the id==None marker MHDB-native monsters don't share.
         let offenders: Vec<&str> = db
             .monsters
             .iter()
-            .filter(|m| m.i18n.ja.is_none() || m.i18n.zh.is_none())
+            .filter(|m| m.id.is_some() && (m.i18n.ja.is_none() || m.i18n.zh.is_none()))
             .map(|m| m.slug.as_str())
             .collect();
         assert!(offenders.is_empty(), "monsters missing i18n: {offenders:?}");

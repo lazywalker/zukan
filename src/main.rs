@@ -448,10 +448,10 @@ mod tests {
     fn prefers_simpler_art() {
         // mhst2 wins over mhw despite mhw being newer.
         let m = Monster {
-            id: String::new(),
+            id: None,
             name: "Test".into(),
             slug: "test".into(),
-            kind: "Test".into(),
+            kind: Some("Test".into()),
             species: None,
             is_large: true,
             sub_species: Vec::new(),
@@ -487,10 +487,10 @@ mod tests {
     fn skips_entries_without_icon() {
         // mhst2 preferred but iconless; falls through to mhfu.
         let m = Monster {
-            id: String::new(),
+            id: None,
             name: "Test".into(),
             slug: "test".into(),
-            kind: "Test".into(),
+            kind: Some("Test".into()),
             species: None,
             is_large: true,
             sub_species: Vec::new(),
@@ -526,10 +526,10 @@ mod tests {
     fn override_picks_that_game() {
         // --game mhw overrides the default mhst2 preference.
         let m = Monster {
-            id: String::new(),
+            id: None,
             name: "Test".into(),
             slug: "test".into(),
-            kind: "Test".into(),
+            kind: Some("Test".into()),
             species: None,
             is_large: true,
             sub_species: Vec::new(),
@@ -565,10 +565,10 @@ mod tests {
     fn override_falls_back_when_game_missing() {
         // --game mhrs but monster not in mhrs; falls back, not errors.
         let m = Monster {
-            id: String::new(),
+            id: None,
             name: "Test".into(),
             slug: "test".into(),
-            kind: "Test".into(),
+            kind: Some("Test".into()),
             species: None,
             is_large: true,
             sub_species: Vec::new(),
@@ -595,10 +595,10 @@ mod tests {
     fn override_falls_back_when_no_icon() {
         // --game mhw but the mhw entry has no icon; falls back to preference.
         let m = Monster {
-            id: String::new(),
+            id: None,
             name: "Test".into(),
             slug: "test".into(),
-            kind: "Test".into(),
+            kind: Some("Test".into()),
             species: None,
             is_large: true,
             sub_species: Vec::new(),

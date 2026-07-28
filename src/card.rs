@@ -40,8 +40,12 @@ pub fn render_monster(img: &DynamicImage, m: &Monster, width: u32, lang: Lang) -
     card.push_plain(format!("{BOLD}{loc_name}{RESET}"));
     card.push_plain(format!("{DIM}{rule}{RESET}"));
 
-    // Type
-    card.add_kv(label("Type", lang), term(&m.kind, lang), value_w);
+    // Type (optional: synthesized roster entries carry no type).
+    if let Some(kind) = &m.kind
+        && !kind.is_empty()
+    {
+        card.add_kv(label("Type", lang), term(kind, lang), value_w);
+    }
     if let Some(species) = &m.species
         && !species.is_empty()
     {
@@ -354,10 +358,10 @@ mod tests {
 
     fn sample_monster() -> Monster {
         Monster {
-            id: String::new(),
+            id: None,
             name: "Rathalos".into(),
             slug: "rathalos".into(),
-            kind: "Flying Wyvern".into(),
+            kind: Some("Flying Wyvern".into()),
             species: Some("flying wyvern".into()),
             is_large: true,
             sub_species: vec!["Azure Rathalos".into()],
