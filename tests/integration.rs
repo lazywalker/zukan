@@ -4,11 +4,22 @@
 //! embedded-asset loading, search, render, and output formatting together.
 //! Assets are baked in at build time (rust-embed reads `assets/`), so the
 //! binary is self-contained; no env vars needed at run time.
+//!
+//! `XDG_CONFIG_HOME` is pointed at a throwaway empty dir for each spawned
+//! child, so the user's real `~/.config/zukan/config` (which may flip
+//! show_card_by_default and other defaults) can't change what these tests
+//! assert.
 
 use std::process::Command;
 
 fn zukan() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_zukan"))
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_zukan"));
+    // dirs::config_dir() honors XDG_CONFIG_HOME on Linux. Point it at an empty
+    // dir so no zukan/config is found; the binary then uses built-in defaults.
+    let tmp = std::env::temp_dir().join("zukan-integration-xdg");
+    let _ = std::fs::create_dir_all(&tmp);
+    cmd.env("XDG_CONFIG_HOME", &tmp);
+    cmd
 }
 
 #[test]

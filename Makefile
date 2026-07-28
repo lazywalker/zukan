@@ -27,11 +27,11 @@ help: ## Show this help
 ##@ Quality
 
 check: ## clippy + fmt check (run before committing)
-	cargo clippy --all-features -- -D warnings
+	cargo clippy --all-features --tests -- -D warnings
 	cargo fmt --all -- --check
 
 test: ## unit + integration tests
-	cargo test --bins
+	cargo test --bins --tests
 
 ##@ Build
 
