@@ -16,9 +16,10 @@ use crate::color::{
     BOLD, CYAN, DIM, RESET, YELLOW, ailment_color, base_game_code, element_color, game_code_abbr,
     stars,
 };
-use crate::data::{Item, Monster};
+use crate::data::{EndemicLife, Item, Monster};
 use crate::i18n::{
-    Lang, item_localized, label, monster_localized, pad_to, term, visible_len, wrap_cjk,
+    Lang, endemic_localized, item_localized, label, monster_localized, pad_to, term, visible_len,
+    wrap_cjk,
 };
 use crate::render::render_halfblock;
 
@@ -214,6 +215,48 @@ pub fn render_item(img: Option<&DynamicImage>, it: &Item, width: u32, lang: Lang
     assemble(&icon_refs, &card.lines, icon_w)
 }
 
+/// Render an endemic-life card: title, Games, description.
+pub fn render_endemic(
+    img: Option<&DynamicImage>,
+    e: &EndemicLife,
+    width: u32,
+    lang: Lang,
+) -> String {
+    let icon_w = width as usize;
+    let value_w = TOTAL_COLS.saturating_sub(icon_w + PAD + KEY_W);
+    let rule = "─".repeat(KEY_W - 1 + value_w.max(1));
+
+    let icon_block: Vec<String> = match img {
+        Some(im) => render_halfblock(im, width, true)
+            .split('\n')
+            .map(str::to_string)
+            .collect(),
+        None => placeholder_block(icon_w, 6),
+    };
+
+    let mut card = CardLines::new();
+    let (loc_name, loc_desc) = endemic_localized(e, lang);
+    card.push_plain(format!("{BOLD}{loc_name}{RESET}"));
+    card.push_plain(format!("{DIM}{rule}{RESET}"));
+
+    if !e.games.is_empty() {
+        let mut games: Vec<String> = e.games.iter().map(|g| game_code_abbr(&g.game)).collect();
+        games.sort();
+        games.dedup();
+        card.add_kv(label("Games", lang), games.join(", "), value_w);
+    }
+
+    if let Some(desc) = loc_desc {
+        card.push_plain(format!("{DIM}{rule}{RESET}"));
+        for line in wrap_cjk(&desc, KEY_W - 1 + value_w) {
+            card.push_plain(format!("{DIM}{line}{RESET}"));
+        }
+    }
+
+    let icon_refs: Vec<&str> = icon_block.iter().map(String::as_str).collect();
+    assemble(&icon_refs, &card.lines, icon_w)
+}
+
 /// Apply the element/status color (by English key) but display the translated text.
 fn colored_term(en: &str, lang: Lang) -> String {
     let text = term(en, lang);
@@ -354,7 +397,7 @@ fn placeholder_block(width: usize, height: usize) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::data::{GameEntry, I18nEntry, I18nMap};
+    use crate::data::{EndemicLife, GameEntry, I18nEntry, I18nMap};
 
     fn sample_monster() -> Monster {
         Monster {
@@ -428,6 +471,53 @@ mod tests {
         // Japanese text "火" wrapped in the Fire color escape.
         assert!(s.contains("火"));
         assert!(s.contains("\x1b[38;5;196m"));
+    }
+
+    fn sample_endemic() -> EndemicLife {
+        EndemicLife {
+            name: "Andangler".into(),
+            slug: "andangler".into(),
+            games: vec![GameEntry {
+                game: "mhw".into(),
+                info: Some("Lures Flying Meduso with its light.".into()),
+                danger: None,
+                icon: Some("endemic/andangler.png".into()),
+                icon_source: None,
+            }],
+            i18n: I18nMap {
+                ja: Some(I18nEntry {
+                    name: Some("アンダングラー".into()),
+                    desc: Some("光に引き寄せられたフライング・メデューソ".into()),
+                    source: None,
+                }),
+                zh: Some(I18nEntry {
+                    name: Some("安氏灯笼鱼".into()),
+                    desc: Some("它们喜欢用光吸引飞行水母".into()),
+                    source: None,
+                }),
+            },
+        }
+    }
+
+    #[test]
+    fn endemic_card_renders_without_panic() {
+        let e = sample_endemic();
+        let img = DynamicImage::new_rgba8(48, 48);
+        let out = render_endemic(Some(&img), &e, 24, Lang::En);
+        assert!(out.contains("Andangler"));
+        assert!(out.contains("Games:"));
+        assert!(out.contains("MHW"));
+        // English description from games[].info.
+        assert!(out.contains("Lures Flying Meduso"));
+    }
+
+    #[test]
+    fn endemic_card_localizes_to_japanese() {
+        let e = sample_endemic();
+        let img = DynamicImage::new_rgba8(48, 48);
+        let out = render_endemic(Some(&img), &e, 24, Lang::Ja);
+        assert!(out.contains("アンダングラー"));
+        assert!(out.contains("登場作品"));
     }
 
     #[test]

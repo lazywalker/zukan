@@ -8,7 +8,7 @@
 //! Field labels and value terms (Type -> 種類, Fire -> 火) come from the
 //! hardcoded tables in `i18n_terms` (not in the Release artifact).
 
-use crate::data::{I18nMap, Monster};
+use crate::data::{EndemicLife, I18nMap, Monster};
 
 /// Display language. `En` short-circuits localization entirely.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -57,6 +57,24 @@ pub fn monster_english_desc(m: &Monster) -> Option<String> {
         }
     }
     m.games.iter().find_map(|g| g.info.clone())
+}
+
+/// Localized (name, description) for an endemic-life record, with English fallback.
+pub fn endemic_localized(e: &EndemicLife, lang: Lang) -> (String, Option<String>) {
+    if let Some(entry) = pick(&e.i18n, lang) {
+        let name = match (&entry.name, lang) {
+            (Some(n), _) if !n.is_empty() => format!("{n} {}", e.name),
+            _ => e.name.clone(),
+        };
+        let desc = entry.desc.clone().filter(|d| !d.is_empty());
+        return (name, desc);
+    }
+    (e.name.clone(), endemic_english_desc(e))
+}
+
+/// Best available English description for endemic life: first game info.
+pub fn endemic_english_desc(e: &EndemicLife) -> Option<String> {
+    e.games.iter().find_map(|g| g.info.clone())
 }
 
 /// Localized (name, description) for an item, with English fallback.

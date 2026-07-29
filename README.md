@@ -54,6 +54,9 @@ zukan rathalos rathian diablos
 # Items instead of monsters
 zukan --item mega-potion --detail
 
+# Endemic life instead of monsters
+zukan --endemic andangler --detail
+
 # Browse
 zukan --random                  # random monster
 zukan --random --game mhwilds   # random monster from Wilds
@@ -67,13 +70,14 @@ zukan rathalos --detail --lang ja
 
 | Flag | Purpose |
 |---|---|
-| `<query>...` | One or more monster/item names (fuzzy, typo-tolerant) |
+| `<query>...` | One or more monster/item/endemic names (fuzzy, typo-tolerant) |
 | `--item` | Query the item database instead of monsters |
+| `--endemic` | Query endemic life instead of monsters |
 | `--detail` | Show the info card next to the icon |
 | `--no-card` | Icon only (overrides `--detail` and config) |
 | `--width N` | Icon width in terminal columns (0 = default 32 monsters / 24 items; else 24..=48) |
 | `--lang en\|ja\|zh` | Display language (`auto` = use config) |
-| `--random` | Pick a random monster/item |
+| `--random` | Pick a random monster/item/endemic |
 | `--game CODE` | Filter `--random` to a game (e.g. `mhw`, `MHW`, `mhwilds`) |
 | `--list GAME` | List all monsters in a game, then exit |
 | `--hide-name` | Suppress the name line on stderr |

@@ -175,6 +175,61 @@ fn item_mode_works() {
 }
 
 #[test]
+fn endemic_mode_works() {
+    let out = zukan()
+        .args(["--endemic", "andangler", "--detail"])
+        .output()
+        .expect("runs");
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains('▀'), "stdout should contain half-block art");
+    // Card mode: the name is the card's title line on stdout (no stderr line).
+    assert!(
+        stdout.contains("Andangler"),
+        "card title should contain the name: {stdout}"
+    );
+    // Card has a Games field (MHW is the only game for this record).
+    assert!(
+        stdout.contains("Games:") || stdout.contains("登場作品"),
+        "card should have a Games field: {stdout}"
+    );
+}
+
+#[test]
+fn endemic_localization() {
+    let out = zukan()
+        .args(["--endemic", "andangler", "--detail", "--lang", "ja"])
+        .output()
+        .expect("runs");
+    assert!(out.status.success());
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("アンダングラー"), "ja name in card title");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        !stderr.contains("アンダングラー"),
+        "card mode must not duplicate the name on stderr"
+    );
+}
+
+#[test]
+fn endemic_typo_resolves() {
+    // "andanglr" is one deletion from "andangler".
+    let out = zukan()
+        .args(["--endemic", "andanglr"])
+        .output()
+        .expect("runs");
+    assert!(out.status.success());
+    assert!(
+        String::from_utf8_lossy(&out.stderr).contains("Andangler"),
+        "andanglr should resolve to Andangler"
+    );
+}
+
+#[test]
 fn list_game_prints_roster() {
     let out = zukan().args(["--list", "mhwilds"]).output().expect("runs");
     assert!(out.status.success());

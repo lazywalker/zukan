@@ -20,7 +20,7 @@ use argh::FromArgs;
 
 use cli::Args;
 use config::Config;
-use data::{Item, Monster};
+use data::{EndemicLife, Item, Monster};
 use database::Database;
 
 fn main() -> ExitCode {
@@ -170,6 +170,28 @@ fn run(db: &Database, cfg: &Config, args: &Args) -> Result<(), RunError> {
         return Ok(());
     }
 
+    if args.endemic {
+        let targets: Vec<usize> = if args.random {
+            vec![
+                search::random(&db.endemics, make_endemic_predicate(game_filter))
+                    .ok_or(RunError::Usage("no endemic life matches the filter"))?,
+            ]
+        } else if args.query.is_empty() {
+            return Err(RunError::Usage(
+                "provide an endemic-life name, or use --endemic --random",
+            ));
+        } else {
+            resolve_many(db, &args.query, args.all, resolve_endemic)?
+        };
+        for (i, &t) in targets.iter().enumerate() {
+            if i > 0 {
+                println!();
+            }
+            render_endemic(&db.endemics[t], width, show_card, args.hide_name, lang);
+        }
+        return Ok(());
+    }
+
     // Monster mode (default).
     let targets: Vec<usize> = if args.random {
         vec![
@@ -219,6 +241,15 @@ fn make_item_predicate(game: Option<&str>) -> impl Fn(&Item) -> bool {
             let normalized = color::normalize_game(&s.game).unwrap_or(&s.game);
             normalized == g
         }),
+    }
+}
+
+/// Filter endemic life by game code. `None` matches everything.
+fn make_endemic_predicate(game: Option<&str>) -> impl Fn(&EndemicLife) -> bool {
+    let game = game.map(str::to_string);
+    move |e: &EndemicLife| match &game {
+        None => true,
+        Some(g) => e.games.iter().any(|entry| entry.game == *g),
     }
 }
 
@@ -288,6 +319,15 @@ fn resolve_item(db: &Database, query: &str, show_all: bool) -> Result<Vec<usize>
     resolve_hits("item", db, query, show_all, hits, |db, i| {
         let it = &db.items[i];
         format!("{} ({})", it.name, it.slug)
+    })
+}
+
+/// Resolve an endemic-life query (same rules as `resolve_monster`).
+fn resolve_endemic(db: &Database, query: &str, show_all: bool) -> Result<Vec<usize>, RunError> {
+    let hits = search::search(&db.endemics, query, 16);
+    resolve_hits("endemic life", db, query, show_all, hits, |db, i| {
+        let e = &db.endemics[i];
+        format!("{} ({})", e.name, e.slug)
     })
 }
 
@@ -398,6 +438,48 @@ fn render_item(it: &Item, width: u32, show_card: bool, hide_name: bool, lang: i1
         }
         (None, true) => {
             println!("{}", card::render_item(None, it, w, lang));
+        }
+        (None, false) => {
+            // No icon, no card; name (if not hidden) was already printed.
+        }
+    }
+}
+
+/// Render an endemic-life creature's icon (and optional card) to stdout; name to stderr.
+fn render_endemic(e: &EndemicLife, width: u32, show_card: bool, hide_name: bool, lang: i18n::Lang) {
+    // Name to stderr first (plain mode only).
+    if !hide_name && !show_card {
+        let (loc_name, _) = i18n::endemic_localized(e, lang);
+        eprintln!("{loc_name}");
+    }
+
+    // First games[] entry with an icon; fall back to the endemic/<slug>.png path.
+    let icon_path = e
+        .games
+        .iter()
+        .find_map(|g| g.icon.clone())
+        .map(|icon| format!("icons/{icon}"))
+        .unwrap_or_else(|| format!("icons/endemic/{}.png", e.slug));
+    let img = Database::asset(&icon_path)
+        .and_then(|data| {
+            image::load_from_memory(data).map_err(|e| database::LoadError::Parse {
+                file: "icon",
+                error: e.to_string(),
+            })
+        })
+        .ok();
+
+    let w = if width != 0 { width } else { 24 };
+
+    match (img.as_ref(), show_card) {
+        (Some(img), true) => {
+            println!("{}", card::render_endemic(Some(img), e, w, lang));
+        }
+        (Some(img), false) => {
+            println!("{}", render::render_halfblock(img, w, true));
+        }
+        (None, true) => {
+            println!("{}", card::render_endemic(None, e, w, lang));
         }
         (None, false) => {
             // No icon, no card; name (if not hidden) was already printed.

@@ -284,6 +284,20 @@ pub struct WildsIcon {
     pub color: Option<String>,
 }
 
+// ========== endemic life ===
+
+/// Endemic life record. Simpler than monsters/items: only name, slug, games[],
+/// and an i18n overlay. No numeric data, rarity, or elements.
+#[derive(Debug, Clone, Deserialize)]
+pub struct EndemicLife {
+    pub name: String,
+    pub slug: String,
+    #[serde(default)]
+    pub games: Vec<GameEntry>,
+    #[serde(default)]
+    pub i18n: I18nMap,
+}
+
 // ============= i18n ====
 
 /// Map of language code to translation entry. Real records always carry ja+zh.

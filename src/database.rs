@@ -12,7 +12,7 @@
 
 use std::collections::HashMap;
 
-use crate::data::{Item, Monster};
+use crate::data::{EndemicLife, Item, Monster};
 
 include!(concat!(env!("OUT_DIR"), "/assets_gen.rs"));
 
@@ -20,10 +20,13 @@ include!(concat!(env!("OUT_DIR"), "/assets_gen.rs"));
 pub struct Database {
     pub monsters: Vec<Monster>,
     pub items: Vec<Item>,
+    pub endemics: Vec<EndemicLife>,
     /// slug to index into `monsters`
     pub monster_index: HashMap<String, usize>,
     /// slug to index into `items`
     pub item_index: HashMap<String, usize>,
+    /// slug to index into `endemics`
+    pub endemic_index: HashMap<String, usize>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -39,15 +42,19 @@ impl Database {
     pub fn load() -> Result<Self, LoadError> {
         let monsters: Vec<Monster> = parse_embedded("data/monsters.json")?;
         let items: Vec<Item> = parse_embedded("data/items.json")?;
+        let endemics: Vec<EndemicLife> = parse_embedded("data/endemic_life.json")?;
 
         let monster_index = build_index(&monsters, |m| &m.slug);
         let item_index = build_index(&items, |i| &i.slug);
+        let endemic_index = build_index(&endemics, |e| &e.slug);
 
         Ok(Self {
             monsters,
             items,
+            endemics,
             monster_index,
             item_index,
+            endemic_index,
         })
     }
 
@@ -57,6 +64,10 @@ impl Database {
 
     pub fn item_by_slug(&self, slug: &str) -> Option<&Item> {
         self.item_index.get(slug).map(|&i| &self.items[i])
+    }
+
+    pub fn endemic_by_slug(&self, slug: &str) -> Option<&EndemicLife> {
+        self.endemic_index.get(slug).map(|&i| &self.endemics[i])
     }
 
     /// Fetch an embedded asset by relative path, like "icons/mhw/rathalos.png".
@@ -157,5 +168,31 @@ mod tests {
         assert!(n.mhw.is_some(), "missing mhw");
         assert!(n.wilds.is_some(), "missing wilds");
         assert!(n.mhgu.is_some(), "missing mhgu");
+    }
+
+    #[test]
+    fn loads_endemic_records() {
+        let db = Database::load().expect("parse");
+        assert!(
+            db.endemics.len() >= 100,
+            "endemic count: {}",
+            db.endemics.len()
+        );
+        assert!(
+            db.endemic_by_slug("andangler").is_some(),
+            "andangler should be indexed"
+        );
+    }
+
+    #[test]
+    fn every_endemic_has_ja_and_zh() {
+        let db = Database::load().expect("parse");
+        let offenders: Vec<&str> = db
+            .endemics
+            .iter()
+            .filter(|e| e.i18n.ja.is_none() || e.i18n.zh.is_none())
+            .map(|e| e.slug.as_str())
+            .collect();
+        assert!(offenders.is_empty(), "endemics missing i18n: {offenders:?}");
     }
 }
