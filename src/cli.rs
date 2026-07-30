@@ -2,7 +2,7 @@
 
 use argh::FromArgs;
 
-/// Parse `--width`: 0 means "use the built-in default" (32 monsters / 24 items),
+/// Parse `--width`: 0 means "use the built-in default" (24 for all types),
 /// otherwise the value must lie in [24, 48].
 fn parse_width(s: &str) -> Result<u32, String> {
     let n: u32 = s
@@ -27,8 +27,12 @@ pub struct Args {
     #[argh(switch)]
     pub item: bool,
 
-    /// terminal column width for the icon. 0 = built-in default (32 monsters /
-    /// 24 items); otherwise must be in 24..=48.
+    /// look up an endemic-life creature instead of a monster.
+    #[argh(switch)]
+    pub endemic: bool,
+
+    /// terminal column width for the icon. 0 = built-in default 24 for all
+    /// types; otherwise must be in 24..=48.
     #[argh(option, from_str_fn(parse_width), default = "0")]
     pub width: u32,
 
@@ -36,7 +40,7 @@ pub struct Args {
     #[argh(switch)]
     pub detail: bool,
 
-    /// pick a random monster (or item with --item).
+    /// pick a random monster (or item with --item, or endemic life with --endemic).
     #[argh(switch)]
     pub random: bool,
 

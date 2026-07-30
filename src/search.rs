@@ -10,7 +10,7 @@
 //! Each tier runs only if the previous produced no matches, so a precise query
 //! never degrades into fuzzy results.
 
-use crate::data::{Item, Monster};
+use crate::data::{EndemicLife, Item, Monster};
 use crate::fuzzy::levenshtein;
 
 /// Anything searchable has a slug and a display name.
@@ -29,6 +29,15 @@ impl Searchable for Monster {
 }
 
 impl Searchable for Item {
+    fn slug(&self) -> &str {
+        &self.slug
+    }
+    fn name(&self) -> &str {
+        &self.name
+    }
+}
+
+impl Searchable for EndemicLife {
     fn slug(&self) -> &str {
         &self.slug
     }
