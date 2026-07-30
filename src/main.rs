@@ -388,7 +388,7 @@ fn render_monster(
         })
     });
 
-    let w = if width != 0 { width } else { 32 };
+    let w = if width != 0 { width } else { 24 };
 
     match (img, show_card) {
         (Ok(img), true) => {
