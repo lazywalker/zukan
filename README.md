@@ -17,6 +17,10 @@ embedded at compile time — a single offline binary, no external data files.
 
 Asset data comes from the companion repo [zukan-assets](https://github.com/lazywalker/zukan-assets).
 
+## Screenshots
+
+![ZUKAN in English, Japanese and Chinese — auto-switching screenshot](docs/screen-shot-toggle.gif)
+
 ## Install
 
 **Prebuilt binary** — download from the
@@ -32,6 +36,13 @@ sudo install -m 755 zukan /usr/local/bin/
 
 ```bash
 cargo install zukan
+```
+
+**Homebrew** — via the shared `lazywalker/tap` tap:
+
+```bash
+brew tap lazywalker/tap
+brew install zukan
 ```
 
 For asset refresh, local-checkout overrides, make targets, developing notes, see [DEVELOPING.md](DEVELOPING.md).
