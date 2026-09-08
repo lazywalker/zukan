@@ -73,6 +73,12 @@ zukan --random                  # random monster
 zukan --random --game mhwilds   # random monster from Wilds
 zukan --list mhwilds            # list all Wilds monsters
 
+# Icon sets: pixel sprites are the default (native size, --width ignored);
+# --sprites game restores the scaled game card icons
+zukan rathalos                  # pixel sprite (roster coverage grows over time)
+zukan kirin                     # not in the pixel set yet -> game card icon
+zukan rathalos --sprites game   # force game card icons
+
 # Languages: en (default) / ja / zh
 zukan rathalos --detail --lang ja
 ```
@@ -91,6 +97,7 @@ zukan rathalos --detail --lang ja
 | `--random` | Pick a random monster/item/endemic |
 | `--game CODE` | Filter `--random` to a game (e.g. `mhw`, `MHW`, `mhwilds`) |
 | `--list GAME` | List all monsters in a game, then exit |
+| `--sprites pixel\|game` | Monster icon set. `pixel` (default): hand-drawn pixel sprites from zukan-assets `pixelart/`, rendered 1:1 at native size (`--width` ignored), game icons as fallback for uncovered monsters. `game`: the scaled game card icons |
 | `--hide-name` | Suppress the name line on stderr |
 | `--all` / `-a` | Render every match instead of just the best one |
 

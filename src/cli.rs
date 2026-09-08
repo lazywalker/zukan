@@ -15,6 +15,23 @@ fn parse_width(s: &str) -> Result<u32, String> {
     }
 }
 
+/// Which icon set renders monsters: the game card icons (`game`, default) or
+/// the hand-drawn pixel sprites (`pixel`, partial coverage, game icons as
+/// fallback for uncovered monsters).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SpriteSet {
+    Game,
+    Pixel,
+}
+
+fn parse_sprites(s: &str) -> Result<SpriteSet, String> {
+    match s {
+        "game" => Ok(SpriteSet::Game),
+        "pixel" => Ok(SpriteSet::Pixel),
+        _ => Err(format!("sprites must be game or pixel, got {s}")),
+    }
+}
+
 /// Monster Hunter bestiary in your terminal.
 #[derive(FromArgs, Debug)]
 pub struct Args {
@@ -52,6 +69,13 @@ pub struct Args {
     #[argh(option)]
     pub game: Option<String>,
 
+    /// monster icon set: hand-drawn pixel sprites (pixel, default — rendered
+    /// at native size, --width ignored) or game card icons (game, scaled).
+    /// partial coverage: monsters without a pixel sprite fall back to game
+    /// icons. items and endemic life are unaffected.
+    #[argh(option, from_str_fn(parse_sprites), default = "SpriteSet::Pixel")]
+    pub sprites: SpriteSet,
+
     /// display language: en / ja / zh. "auto" uses config or defaults to en.
     #[argh(option, default = "\"auto\".to_string()")]
     pub lang: String,
@@ -87,6 +111,13 @@ mod tests {
         assert_eq!(parse_width("24").unwrap(), 24);
         assert_eq!(parse_width("48").unwrap(), 48);
         assert_eq!(parse_width("32").unwrap(), 32);
+    }
+
+    #[test]
+    fn sprites_parses_both_sets() {
+        assert_eq!(parse_sprites("game").unwrap(), SpriteSet::Game);
+        assert_eq!(parse_sprites("pixel").unwrap(), SpriteSet::Pixel);
+        assert!(parse_sprites("sprite").is_err());
     }
 
     #[test]
