@@ -495,13 +495,19 @@ fn render_endemic(e: &EndemicLife, width: u32, show_card: bool, hide_name: bool,
         eprintln!("{loc_name}");
     }
 
-    // First games[] entry with an icon; fall back to the endemic/<slug>.png path.
-    let icon_path = e
-        .games
-        .iter()
-        .find_map(|g| g.icon.clone())
-        .map(|icon| format!("icons/{icon}"))
-        .unwrap_or_else(|| format!("icons/endemic/{}.png", e.slug));
+    // Pixel sprite first (native size, width ignored downstream), then the
+    // first games[] entry with an icon, then the endemic/<slug>.png path.
+    let pixel_path = format!("icons-pixelart/endemic/{}.png", e.slug);
+    let has_pixel = Database::asset(&pixel_path).is_ok();
+    let icon_path = if has_pixel {
+        pixel_path
+    } else {
+        e.games
+            .iter()
+            .find_map(|g| g.icon.clone())
+            .map(|icon| format!("icons/{icon}"))
+            .unwrap_or_else(|| format!("icons/endemic/{}.png", e.slug))
+    };
     let img = Database::asset(&icon_path)
         .and_then(|data| {
             image::load_from_memory(data).map_err(|e| database::LoadError::Parse {
@@ -511,14 +517,17 @@ fn render_endemic(e: &EndemicLife, width: u32, show_card: bool, hide_name: bool,
         })
         .ok();
 
-    let w = if width != 0 { width } else { 24 };
+    // Pixel sprites render 1:1 (--width ignored, no resampling); game card
+    // icons scale as configured.
+    let native = icon_path.starts_with("icons-pixelart/");
+    let w = render_width(img.as_ref().map(|i| i.width()).unwrap_or(0), native, width);
 
     match (img.as_ref(), show_card) {
         (Some(img), true) => {
             println!("{}", card::render_endemic(Some(img), e, w, lang));
         }
         (Some(img), false) => {
-            println!("{}", render::render_halfblock(img, w, true));
+            println!("{}", render::render_halfblock(img, w, !native));
         }
         (None, true) => {
             println!("{}", card::render_endemic(None, e, w, lang));
