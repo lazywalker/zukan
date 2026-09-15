@@ -25,8 +25,14 @@ const RELEASE_URL: &str =
 /// they can act on (`make download`, retry, fix connectivity).
 const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(120);
 
-/// The two subdirectories rust-embed actually consumes.
-const PAYLOAD_SUBDIRS: &[&str] = &["data", "icons"];
+/// Payload subdirectories the asset table consumes. `icons-pixelart` is the
+/// optional hand-drawn sprite set: new Release tarballs carry it, older ones
+/// do not, and zukan falls back to `icons/` for monsters it does not cover.
+const PAYLOAD_SUBDIRS: &[&str] = &["data", "icons", "icons-pixelart"];
+
+/// Subdirectories a payload must contain to be usable at all. `icons-pixelart`
+/// is deliberately absent: optional payload, never a download failure.
+const ESSENTIAL_SUBDIRS: &[&str] = &["data", "icons"];
 
 fn main() {
     let manifest_dir =
@@ -112,9 +118,9 @@ fn collect_files(root: &Path, dir: &Path, out: &mut Vec<(String, PathBuf)>) {
     }
 }
 
-/// True if `dir` contains both `data/` and `icons/` subdirectories.
+/// True if `dir` contains the essential payload subdirectories.
 fn has_payload(dir: &Path) -> bool {
-    PAYLOAD_SUBDIRS.iter().all(|sub| dir.join(sub).is_dir())
+    ESSENTIAL_SUBDIRS.iter().all(|sub| dir.join(sub).is_dir())
 }
 
 /// Bail out clearly if the directory doesn't actually contain data/ + icons/.

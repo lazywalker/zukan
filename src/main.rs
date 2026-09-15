@@ -216,6 +216,7 @@ fn run(db: &Database, cfg: &Config, args: &Args) -> Result<(), RunError> {
             show_card,
             args.hide_name,
             game_filter,
+            args.sprites,
             lang,
         );
     }
@@ -370,6 +371,7 @@ fn render_monster(
     show_card: bool,
     hide_name: bool,
     game_override: Option<&str>,
+    sprites: cli::SpriteSet,
     lang: i18n::Lang,
 ) {
     // Name to stderr first (plain mode only).
@@ -378,29 +380,69 @@ fn render_monster(
         eprintln!("{loc_name}");
     }
 
-    let icon_path =
-        best_icon_path(m, game_override).unwrap_or_else(|| format!("icons/mhw/{}.png", m.slug));
-
-    let img = Database::asset(&icon_path).and_then(|data| {
-        image::load_from_memory(data).map_err(|e| database::LoadError::Parse {
-            file: "icon",
-            error: e.to_string(),
-        })
-    });
-
-    let w = if width != 0 { width } else { 24 };
-
-    match (img, show_card) {
-        (Ok(img), true) => {
-            println!("{}", card::render_monster(&img, m, w, lang));
-        }
-        (Ok(img), false) => {
-            println!("{}", render::render_halfblock(&img, w, true));
-        }
-        (Err(e), _) => {
-            eprintln!("zukan: could not load icon {icon_path}: {e}");
+    let candidates = monster_icon_paths(m, sprites, game_override);
+    let mut icon_path = String::new();
+    let mut img = None;
+    for path in &candidates {
+        if let Ok(data) = Database::asset(path) {
+            // Undecodable falls through to the next candidate.
+            if let Ok(decoded) = image::load_from_memory(data) {
+                icon_path = path.clone();
+                img = Some(decoded);
+                break;
+            }
         }
     }
+
+    // Pixel sprites render at native size: one pixel per half-block cell,
+    // no resampling, --width ignored. Game card icons scale as configured.
+    let native = icon_path.starts_with("icons-pixelart/");
+    let w = render_width(img.as_ref().map(|i| i.width()).unwrap_or(0), native, width);
+
+    match (img, show_card) {
+        (Some(img), true) => {
+            println!("{}", card::render_monster(&img, m, w, lang, !native));
+        }
+        (Some(img), false) => {
+            println!("{}", render::render_halfblock(&img, w, !native));
+        }
+        (None, _) => {
+            eprintln!("zukan: could not load icon, tried: {}", tried(&candidates));
+        }
+    }
+}
+
+/// Render width for an icon. Pixel sprites are natively sized pixel art:
+/// they render 1:1 (--width ignored, no resampling). Game card icons scale
+/// to `width_arg`, falling back to the 24-column default when it is 0.
+fn render_width(img_width: u32, native: bool, width_arg: u32) -> u32 {
+    if native {
+        img_width
+    } else if width_arg != 0 {
+        width_arg
+    } else {
+        24
+    }
+}
+
+/// Icon paths for a monster, best first. Pixel mode puts the hand-drawn
+/// sprite first and keeps the game icon as fallback, because the pixel set
+/// intentionally covers only a subset of the roster.
+fn monster_icon_paths(
+    m: &Monster,
+    sprites: cli::SpriteSet,
+    game_override: Option<&str>,
+) -> Vec<String> {
+    let game =
+        best_icon_path(m, game_override).unwrap_or_else(|| format!("icons/mhw/{}.png", m.slug));
+    match sprites {
+        cli::SpriteSet::Game => vec![game],
+        cli::SpriteSet::Pixel => vec![format!("icons-pixelart/{}.png", m.slug), game],
+    }
+}
+
+fn tried(paths: &[String]) -> String {
+    paths.join(", ")
 }
 
 /// Render an item's icon (and optional card) to stdout; name to stderr.
@@ -453,13 +495,19 @@ fn render_endemic(e: &EndemicLife, width: u32, show_card: bool, hide_name: bool,
         eprintln!("{loc_name}");
     }
 
-    // First games[] entry with an icon; fall back to the endemic/<slug>.png path.
-    let icon_path = e
-        .games
-        .iter()
-        .find_map(|g| g.icon.clone())
-        .map(|icon| format!("icons/{icon}"))
-        .unwrap_or_else(|| format!("icons/endemic/{}.png", e.slug));
+    // Pixel sprite first (native size, width ignored downstream), then the
+    // first games[] entry with an icon, then the endemic/<slug>.png path.
+    let pixel_path = format!("icons-pixelart/endemic/{}.png", e.slug);
+    let has_pixel = Database::asset(&pixel_path).is_ok();
+    let icon_path = if has_pixel {
+        pixel_path
+    } else {
+        e.games
+            .iter()
+            .find_map(|g| g.icon.clone())
+            .map(|icon| format!("icons/{icon}"))
+            .unwrap_or_else(|| format!("icons/endemic/{}.png", e.slug))
+    };
     let img = Database::asset(&icon_path)
         .and_then(|data| {
             image::load_from_memory(data).map_err(|e| database::LoadError::Parse {
@@ -469,17 +517,20 @@ fn render_endemic(e: &EndemicLife, width: u32, show_card: bool, hide_name: bool,
         })
         .ok();
 
-    let w = if width != 0 { width } else { 24 };
+    // Pixel sprites render 1:1 (--width ignored, no resampling); game card
+    // icons scale as configured.
+    let native = icon_path.starts_with("icons-pixelart/");
+    let w = render_width(img.as_ref().map(|i| i.width()).unwrap_or(0), native, width);
 
     match (img.as_ref(), show_card) {
         (Some(img), true) => {
-            println!("{}", card::render_endemic(Some(img), e, w, lang));
+            println!("{}", card::render_endemic(Some(img), e, w, lang, !native));
         }
         (Some(img), false) => {
-            println!("{}", render::render_halfblock(img, w, true));
+            println!("{}", render::render_halfblock(img, w, !native));
         }
         (None, true) => {
-            println!("{}", card::render_endemic(None, e, w, lang));
+            println!("{}", card::render_endemic(None, e, w, lang, !native));
         }
         (None, false) => {
             // No icon, no card; name (if not hidden) was already printed.
@@ -526,10 +577,8 @@ fn best_icon_path(m: &Monster, game_override: Option<&str>) -> Option<String> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn prefers_simpler_art() {
-        // mhst2 wins over mhw despite mhw being newer.
-        let m = Monster {
+    fn icon_test_monster() -> Monster {
+        Monster {
             id: None,
             name: "Test".into(),
             slug: "test".into(),
@@ -558,10 +607,66 @@ mod tests {
             ],
             numeric: None,
             i18n: Default::default(),
-        };
+        }
+    }
+
+    #[test]
+    fn prefers_simpler_art() {
+        // mhst2 wins over mhw despite mhw being newer.
+        let m = icon_test_monster();
         assert_eq!(
             best_icon_path(&m, None).as_deref(),
             Some("icons/mhst2/test.png")
+        );
+    }
+
+    #[test]
+    fn pixel_sprites_render_native_width() {
+        // Native pixel art ignores --width entirely.
+        assert_eq!(render_width(36, true, 0), 36);
+        assert_eq!(render_width(36, true, 48), 36);
+        assert_eq!(render_width(28, true, 24), 28);
+    }
+
+    #[test]
+    fn game_icons_use_configured_width() {
+        assert_eq!(render_width(48, false, 0), 24);
+        assert_eq!(render_width(48, false, 32), 32);
+    }
+
+    #[test]
+    fn game_set_yields_one_candidate() {
+        let m = icon_test_monster();
+        assert_eq!(
+            monster_icon_paths(&m, cli::SpriteSet::Game, None),
+            vec!["icons/mhst2/test.png".to_string()]
+        );
+    }
+
+    #[test]
+    fn pixel_set_prefers_pixel_then_game_fallback() {
+        let m = icon_test_monster();
+        assert_eq!(
+            monster_icon_paths(&m, cli::SpriteSet::Pixel, None),
+            vec![
+                "icons-pixelart/test.png".to_string(),
+                "icons/mhst2/test.png".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn pixel_set_fallback_uses_default_icon_when_roster_has_none() {
+        // No games[] entries at all: best_icon_path is None, so the mhw
+        // default stands in as the fallback behind the pixel path.
+        let mut m = icon_test_monster();
+        m.games = Vec::new();
+        assert_eq!(
+            monster_icon_paths(&m, cli::SpriteSet::Pixel, None),
+            vec![
+                "icons-pixelart/test.png".to_string(),
+                "icons/mhw/test.png".to_string()
+            ]
         );
     }
 

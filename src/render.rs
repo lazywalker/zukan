@@ -238,6 +238,28 @@ pub fn bg(r: u8, g: u8, b: u8) -> String {
     format!("\x1b[48;2;{r};{g};{b}m")
 }
 
+/// Strip SGR escape sequences so tests can assert on visible content.
+#[cfg(test)]
+pub(crate) fn strip_ansi(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut bytes = s.chars().peekable();
+    while let Some(c) = bytes.next() {
+        if c == '\x1b' && bytes.peek() == Some(&'[') {
+            // consume CSI sequence up to and including the final letter
+            bytes.next(); // '['
+            while let Some(&n) = bytes.peek() {
+                bytes.next();
+                if n.is_ascii_alphabetic() {
+                    break;
+                }
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -255,27 +277,6 @@ mod tests {
 
     fn rgba(c: [u8; 4]) -> Rgba<u8> {
         Rgba(c)
-    }
-
-    /// Strip SGR escape sequences so we can assert on visible content.
-    fn strip_ansi(s: &str) -> String {
-        let mut out = String::with_capacity(s.len());
-        let mut bytes = s.chars().peekable();
-        while let Some(c) = bytes.next() {
-            if c == '\x1b' && bytes.peek() == Some(&'[') {
-                // consume CSI sequence up to and including the final letter
-                bytes.next(); // '['
-                while let Some(&n) = bytes.peek() {
-                    bytes.next();
-                    if n.is_ascii_alphabetic() {
-                        break;
-                    }
-                }
-            } else {
-                out.push(c);
-            }
-        }
-        out
     }
 
     #[test]
