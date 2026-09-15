@@ -28,12 +28,22 @@ const PAD: usize = 3;
 const KEY_W: usize = 13;
 
 /// Render a monster card: icon + info, name on stderr is the caller's job.
-pub fn render_monster(img: &DynamicImage, m: &Monster, width: u32, lang: Lang) -> String {
+///
+/// `trim` feeds `render_halfblock`. Native pixel sprites must pass false:
+/// trimming shrinks the sprite below `width`, and the fixed-width resize then
+/// stretches it back up, blurring the art.
+pub fn render_monster(
+    img: &DynamicImage,
+    m: &Monster,
+    width: u32,
+    lang: Lang,
+    trim: bool,
+) -> String {
     let icon_w = width as usize;
     let value_w = TOTAL_COLS.saturating_sub(icon_w + PAD + KEY_W);
     let rule = "─".repeat(KEY_W - 1 + value_w.max(1));
 
-    let rendered = render_halfblock(img, width, true);
+    let rendered = render_halfblock(img, width, trim);
     let icon_block: Vec<&str> = rendered.split('\n').collect();
     let mut card = CardLines::new();
 
@@ -215,19 +225,21 @@ pub fn render_item(img: Option<&DynamicImage>, it: &Item, width: u32, lang: Lang
     assemble(&icon_refs, &card.lines, icon_w)
 }
 
-/// Render an endemic-life card: title, Games, description.
+/// Render an endemic-life card: title, Games, description. `trim` feeds
+/// `render_halfblock`; native pixel sprites pass false (see `render_monster`).
 pub fn render_endemic(
     img: Option<&DynamicImage>,
     e: &EndemicLife,
     width: u32,
     lang: Lang,
+    trim: bool,
 ) -> String {
     let icon_w = width as usize;
     let value_w = TOTAL_COLS.saturating_sub(icon_w + PAD + KEY_W);
     let rule = "─".repeat(KEY_W - 1 + value_w.max(1));
 
     let icon_block: Vec<String> = match img {
-        Some(im) => render_halfblock(im, width, true)
+        Some(im) => render_halfblock(im, width, trim)
             .split('\n')
             .map(str::to_string)
             .collect(),
@@ -398,6 +410,8 @@ fn placeholder_block(width: usize, height: usize) -> Vec<String> {
 mod tests {
     use super::*;
     use crate::data::{EndemicLife, GameEntry, I18nEntry, I18nMap};
+    use crate::render::strip_ansi;
+    use image::GenericImage;
 
     fn sample_monster() -> Monster {
         Monster {
@@ -447,7 +461,7 @@ mod tests {
     fn card_renders_without_panic() {
         let m = sample_monster();
         let img = DynamicImage::new_rgba8(48, 48);
-        let out = render_monster(&img, &m, 32, Lang::En);
+        let out = render_monster(&img, &m, 32, Lang::En, true);
         assert!(out.contains("Rathalos"));
         assert!(out.contains("Flying Wyvern"));
         assert!(out.contains("Fire"));
@@ -457,12 +471,33 @@ mod tests {
     fn card_localizes_to_japanese() {
         let m = sample_monster();
         let img = DynamicImage::new_rgba8(48, 48);
-        let out = render_monster(&img, &m, 32, Lang::Ja);
+        let out = render_monster(&img, &m, 32, Lang::Ja, true);
         // Name line: localized ja name prepended.
         assert!(out.contains("リオレウス"));
         // Type label localized.
         assert!(out.contains("種類"));
         assert!(out.contains("飛竜種"));
+    }
+
+    #[test]
+    fn pixel_card_keeps_native_pixels() {
+        // trim=false keeps transparent margins: the 2x2 subject stays four
+        // half-block cells instead of being cropped and upscaled to the
+        // full icon width.
+        let mut img = DynamicImage::new_rgba8(8, 8);
+        for y in 3..5 {
+            for x in 3..5 {
+                img.put_pixel(x, y, image::Rgba([255, 0, 0, 255]));
+            }
+        }
+        let m = sample_monster();
+        let out = render_monster(&img, &m, 8, Lang::En, false);
+        let rows: Vec<String> = out
+            .lines()
+            .map(|l| strip_ansi(l).chars().take(8).collect())
+            .collect();
+        assert_eq!(rows[1], "   ▄▄   ");
+        assert_eq!(rows[2], "   ▀▀   ");
     }
 
     #[test]
@@ -503,7 +538,7 @@ mod tests {
     fn endemic_card_renders_without_panic() {
         let e = sample_endemic();
         let img = DynamicImage::new_rgba8(48, 48);
-        let out = render_endemic(Some(&img), &e, 24, Lang::En);
+        let out = render_endemic(Some(&img), &e, 24, Lang::En, true);
         assert!(out.contains("Andangler"));
         assert!(out.contains("Games:"));
         assert!(out.contains("MHW"));
@@ -515,7 +550,7 @@ mod tests {
     fn endemic_card_localizes_to_japanese() {
         let e = sample_endemic();
         let img = DynamicImage::new_rgba8(48, 48);
-        let out = render_endemic(Some(&img), &e, 24, Lang::Ja);
+        let out = render_endemic(Some(&img), &e, 24, Lang::Ja, true);
         assert!(out.contains("アンダングラー"));
         assert!(out.contains("登場作品"));
     }

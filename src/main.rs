@@ -394,14 +394,14 @@ fn render_monster(
         }
     }
 
-    // Pixel sprites render at native size — one pixel per half-block cell,
+    // Pixel sprites render at native size: one pixel per half-block cell,
     // no resampling, --width ignored. Game card icons scale as configured.
     let native = icon_path.starts_with("icons-pixelart/");
     let w = render_width(img.as_ref().map(|i| i.width()).unwrap_or(0), native, width);
 
     match (img, show_card) {
         (Some(img), true) => {
-            println!("{}", card::render_monster(&img, m, w, lang));
+            println!("{}", card::render_monster(&img, m, w, lang, !native));
         }
         (Some(img), false) => {
             println!("{}", render::render_halfblock(&img, w, !native));
@@ -524,13 +524,13 @@ fn render_endemic(e: &EndemicLife, width: u32, show_card: bool, hide_name: bool,
 
     match (img.as_ref(), show_card) {
         (Some(img), true) => {
-            println!("{}", card::render_endemic(Some(img), e, w, lang));
+            println!("{}", card::render_endemic(Some(img), e, w, lang, !native));
         }
         (Some(img), false) => {
             println!("{}", render::render_halfblock(img, w, !native));
         }
         (None, true) => {
-            println!("{}", card::render_endemic(None, e, w, lang));
+            println!("{}", card::render_endemic(None, e, w, lang, !native));
         }
         (None, false) => {
             // No icon, no card; name (if not hidden) was already printed.
