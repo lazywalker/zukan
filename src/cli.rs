@@ -35,21 +35,19 @@ fn parse_sprites(s: &str) -> Result<SpriteSet, String> {
 /// Monster Hunter bestiary in your terminal.
 #[derive(FromArgs, Debug)]
 pub struct Args {
-    /// monster or item name (fuzzy, typo-tolerant). multiple names render
-    /// back-to-back.
+    /// monster or item name (fuzzy, typo-tolerant).
     #[argh(positional)]
     pub query: Vec<String>,
 
-    /// look up an item instead of a monster.
+    /// look up an item.
     #[argh(switch)]
     pub item: bool,
 
-    /// look up an endemic-life creature instead of a monster.
+    /// look up an endemic-life creature.
     #[argh(switch)]
     pub endemic: bool,
 
-    /// terminal column width for the icon. 0 = built-in default 24 for all
-    /// types; otherwise must be in 24..=48.
+    /// icon width in 24..=48 (0 = default).
     #[argh(option, from_str_fn(parse_width), default = "0")]
     pub width: u32,
 
@@ -57,26 +55,23 @@ pub struct Args {
     #[argh(switch)]
     pub detail: bool,
 
-    /// pick a random monster (or item with --item, or endemic life with --endemic).
+    /// pick a random monster, item, or endemic-life creature.
     #[argh(switch)]
     pub random: bool,
 
-    /// list monsters belonging to a game (mhw, MHW, ...).
+    /// list monsters in a game.
     #[argh(option)]
     pub list: Option<String>,
 
-    /// filter by game code or abbreviation (mhw, MHW, ...).
+    /// filter by game code (mhw, MHW, ...).
     #[argh(option)]
     pub game: Option<String>,
 
-    /// monster icon set: hand-drawn pixel sprites (pixel, default — rendered
-    /// at native size, --width ignored) or game card icons (game, scaled).
-    /// partial coverage: monsters without a pixel sprite fall back to game
-    /// icons. items and endemic life are unaffected.
+    /// monster icon set: pixel (default) or game.
     #[argh(option, from_str_fn(parse_sprites), default = "SpriteSet::Pixel")]
     pub sprites: SpriteSet,
 
-    /// display language: en / ja / zh. "auto" uses config or defaults to en.
+    /// display language: en / ja / zh.
     #[argh(option, default = "\"auto\".to_string()")]
     pub lang: String,
 
@@ -84,11 +79,11 @@ pub struct Args {
     #[argh(switch)]
     pub hide_name: bool,
 
-    /// icon only, no info card (overrides --detail).
+    /// icon only, no info card.
     #[argh(switch)]
     pub no_card: bool,
 
-    /// show every match instead of just the best one.
+    /// show every match.
     #[argh(switch, short = 'a')]
     pub all: bool,
 
